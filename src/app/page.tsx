@@ -1,66 +1,128 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client';
 
-export default function Home() {
+import { useState, useEffect } from 'react';
+import { TopNav, Page } from './components/shared';
+import { LandingPage } from './components/landing';
+import { ComparePage } from './components/compare';
+import { PricingPage } from './components/pricing';
+import { DashboardPage } from './components/dashboard';
+import { SettingsPage } from './components/settings';
+import { MobilePage } from './components/mobile';
+import { AuthPage } from './components/auth';
+import { ModelPickerModal, ApiKeysModal } from './components/modals';
+import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakToggle, TweakButton } from './components/tweaks-panel';
+import { auth } from '@/lib/firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
+
+const ACCENT_PALETTES: Record<string, { primary: string; secondary: string }> = {
+  violet: { primary: '#7C3AED', secondary: '#00D4FF' },
+  cyan:   { primary: '#00D4FF', secondary: '#7C3AED' },
+  green:  { primary: '#22C55E', secondary: '#00D4FF' },
+  pink:   { primary: '#EC4899', secondary: '#F59E0B' },
+};
+
+export default function App() {
+  const [page, setPage] = useState<Page>('landing');
+  const [currentModel, setCurrentModel] = useState('claude');
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [keysOpen, setKeysOpen] = useState(false);
+  const [t, setTweak] = useTweaks({ accent: 'violet', showOrbs: true, denseDashboard: false, compareLayout: '3-col' });
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // Monitor Firebase Auth State changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setAuthLoading(false);
+      // Redirect authenticated users trying to access login/signup directly to dashboard
+      if (currentUser && (page === 'login' || page === 'signup')) {
+        setPage('dashboard');
+      }
+    });
+    return () => unsubscribe();
+  }, [page]);
+
+  // Client-Side Route Guard for Protected Pages
+  useEffect(() => {
+    if (!authLoading && !user && (page === 'dashboard' || page === 'settings')) {
+      setPage('login');
+    }
+  }, [user, authLoading, page]);
+
+  useEffect(() => {
+    const palette = ACCENT_PALETTES[t.accent as string] ?? ACCENT_PALETTES.violet;
+    document.documentElement.style.setProperty('--accent', palette.primary);
+    document.documentElement.style.setProperty('--accent-2', palette.secondary);
+  }, [t.accent]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setPickerOpen(p => !p);
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
+  const isAuthPage = page === 'login' || page === 'signup';
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+    <>
+      {!isAuthPage && <TopNav page={page} setPage={setPage} />}
+
+      <main>
+        {page === 'landing'    && <LandingPage setPage={setPage} />}
+        {page === 'compare'    && <ComparePage setPage={setPage} />}
+        {page === 'pricing'    && <PricingPage setPage={setPage} />}
+        {page === 'dashboard'  && <DashboardPage setPage={setPage} currentModel={currentModel} setCurrentModel={setCurrentModel} openModelPicker={() => setPickerOpen(true)} openApiKeys={() => setKeysOpen(true)} />}
+        {page === 'settings'   && <SettingsPage setPage={setPage} openApiKeys={() => setKeysOpen(true)} />}
+        {page === 'mobile'     && <MobilePage />}
+        {isAuthPage            && <AuthPage page={page} setPage={setPage} />}
       </main>
-    </div>
+
+      <ModelPickerModal
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        currentModel={currentModel}
+        setCurrentModel={setCurrentModel}
+      />
+
+      <ApiKeysModal
+        open={keysOpen}
+        onClose={() => setKeysOpen(false)}
+      />
+
+      {!isAuthPage && (
+        <TweaksPanel>
+          <TweakSection title="Accent color">
+            <TweakRadio label="Accent" value={t.accent as string} options={['violet', 'cyan', 'green', 'pink']} onChange={v => setTweak('accent', v)} />
+          </TweakSection>
+
+          <TweakSection title="Background orbs">
+            <TweakToggle label="Show orbs" value={t.showOrbs as boolean} onChange={v => setTweak('showOrbs', v)} />
+          </TweakSection>
+
+          <TweakSection title="Dashboard density">
+            <TweakToggle label="Dense layout" value={t.denseDashboard as boolean} onChange={v => setTweak('denseDashboard', v)} />
+          </TweakSection>
+
+          <TweakSection title="Compare layout">
+            <TweakRadio label="Layout" value={t.compareLayout as string} options={['3-col', '2-col', 'stack']} onChange={v => setTweak('compareLayout', v)} />
+          </TweakSection>
+
+          <TweakSection title="Quick navigation">
+            <TweakButton onClick={() => setPage('landing')}>Landing</TweakButton>
+            <TweakButton onClick={() => setPage('compare')}>Compare</TweakButton>
+            <TweakButton onClick={() => setPage('dashboard')}>Dashboard</TweakButton>
+            <TweakButton onClick={() => setPage('pricing')}>Pricing</TweakButton>
+            <TweakButton onClick={() => setPage('settings')}>Settings</TweakButton>
+            <TweakButton onClick={() => setPage('mobile')}>Mobile</TweakButton>
+          </TweakSection>
+        </TweaksPanel>
+      )}
+    </>
   );
 }
