@@ -7,7 +7,6 @@ import { ComparePage } from './components/compare';
 import { PricingPage } from './components/pricing';
 import { DashboardPage } from './components/dashboard';
 import { SettingsPage } from './components/settings';
-import { MobilePage } from './components/mobile';
 import { AuthPage } from './components/auth';
 import { ModelPickerModal, ApiKeysModal } from './components/modals';
 import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakToggle, TweakButton } from './components/tweaks-panel';
@@ -79,7 +78,6 @@ export default function App() {
         {page === 'pricing'    && <PricingPage setPage={setPage} />}
         {page === 'dashboard'  && <DashboardPage setPage={setPage} currentModel={currentModel} setCurrentModel={setCurrentModel} openModelPicker={() => setPickerOpen(true)} openApiKeys={() => setKeysOpen(true)} />}
         {page === 'settings'   && <SettingsPage setPage={setPage} openApiKeys={() => setKeysOpen(true)} />}
-        {page === 'mobile'     && <MobilePage />}
         {isAuthPage            && <AuthPage page={page} setPage={setPage} />}
       </main>
 
@@ -119,7 +117,6 @@ export default function App() {
             <TweakButton onClick={() => setPage('dashboard')}>Dashboard</TweakButton>
             <TweakButton onClick={() => setPage('pricing')}>Pricing</TweakButton>
             <TweakButton onClick={() => setPage('settings')}>Settings</TweakButton>
-            <TweakButton onClick={() => setPage('mobile')}>Mobile</TweakButton>
           </TweakSection>
         </TweaksPanel>
       )}

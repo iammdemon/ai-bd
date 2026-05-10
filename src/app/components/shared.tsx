@@ -98,7 +98,7 @@ export function Wordmark({ size = 18 }: { size?: number }) {
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 
-export type Page = 'landing' | 'compare' | 'pricing' | 'dashboard' | 'settings' | 'mobile' | 'login' | 'signup';
+export type Page = 'landing' | 'compare' | 'pricing' | 'dashboard' | 'settings' | 'login' | 'signup';
 
 export function TopNav({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
   const [user, setUser] = useState<User | null>(null);
@@ -128,7 +128,6 @@ export function TopNav({ page, setPage }: { page: Page; setPage: (p: Page) => vo
       { id: 'dashboard', label: 'Dashboard' },
       { id: 'settings',  label: 'Settings'  }
     ] : []),
-    { id: 'mobile',    label: 'Mobile'    },
   ];
   return (
     <div style={{
