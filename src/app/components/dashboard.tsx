@@ -50,7 +50,7 @@ export function DashboardPage({ setPage, openModelPicker, openApiKeys }: Dashboa
             </div>
             <div>
               <div style={styles.logoText}>OneAI Hub</div>
-              <div style={styles.logoSubtext}>Premium SaaS</div>
+              <div style={styles.logoSubtext}>ENTERPRISE WORKSPACE</div>
             </div>
           </div>
 
@@ -80,7 +80,7 @@ export function DashboardPage({ setPage, openModelPicker, openApiKeys }: Dashboa
             </button>
 
             <button 
-              onClick={() => openModelPicker()} 
+              onClick={() => setPage('models')} 
               style={{...styles.navItem, ...(activeTab === 'models' ? styles.navItemActive : {})}}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

@@ -7,6 +7,7 @@ import { ComparePage } from './components/compare';
 import { PricingPage } from './components/pricing';
 import { DashboardPage } from './components/dashboard';
 import { SettingsPage } from './components/settings';
+import { ModelsPage } from './components/models-page';
 import { AuthPage } from './components/auth';
 import { ModelPickerModal, ApiKeysModal } from './components/modals';
 import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakToggle, TweakButton } from './components/tweaks-panel';
@@ -44,7 +45,7 @@ export default function App() {
 
   // Client-Side Route Guard for Protected Pages
   useEffect(() => {
-    if (!authLoading && !user && (page === 'dashboard' || page === 'settings')) {
+    if (!authLoading && !user && (page === 'dashboard' || page === 'settings' || page === 'models')) {
       setPage('login');
     }
   }, [user, authLoading, page]);
@@ -70,13 +71,14 @@ export default function App() {
 
   return (
     <>
-      {!isAuthPage && page !== 'dashboard' && <TopNav page={page} setPage={setPage} />}
+      {!isAuthPage && page !== 'dashboard' && page !== 'models' && <TopNav page={page} setPage={setPage} />}
 
       <main>
         {page === 'landing'    && <LandingPage setPage={setPage} />}
         {page === 'compare'    && <ComparePage setPage={setPage} />}
         {page === 'pricing'    && <PricingPage setPage={setPage} />}
         {page === 'dashboard'  && <DashboardPage setPage={setPage} currentModel={currentModel} setCurrentModel={setCurrentModel} openModelPicker={() => setPickerOpen(true)} openApiKeys={() => setKeysOpen(true)} />}
+        {page === 'models'     && <ModelsPage setPage={setPage} openModelPicker={() => setPickerOpen(true)} openApiKeys={() => setKeysOpen(true)} />}
         {page === 'settings'   && <SettingsPage setPage={setPage} openApiKeys={() => setKeysOpen(true)} />}
         {isAuthPage            && <AuthPage page={page} setPage={setPage} />}
       </main>
