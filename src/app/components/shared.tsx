@@ -125,8 +125,8 @@ export function TopNav({ page, setPage }: { page: Page; setPage: (p: Page) => vo
     { id: 'compare',   label: 'Compare'   },
     { id: 'pricing',   label: 'Pricing'   },
     ...(user ? [
-      { id: 'dashboard', label: 'Dashboard' },
-      { id: 'settings',  label: 'Settings'  }
+      { id: 'dashboard' as Page, label: 'Dashboard' },
+      { id: 'settings' as Page,  label: 'Settings'  }
     ] : []),
   ];
   return (
