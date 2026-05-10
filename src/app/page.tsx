@@ -70,7 +70,7 @@ export default function App() {
 
   return (
     <>
-      {!isAuthPage && <TopNav page={page} setPage={setPage} />}
+      {!isAuthPage && page !== 'dashboard' && <TopNav page={page} setPage={setPage} />}
 
       <main>
         {page === 'landing'    && <LandingPage setPage={setPage} />}

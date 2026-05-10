@@ -1,385 +1,1293 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { Pill, StreamText, Page } from './shared';
-import { ModelGlyph, MODEL_BY_ID, MODELS } from './models';
-import { Icon } from './icons';
+import { useState, useEffect } from 'react';
+import { Page } from './shared';
+import { auth } from '@/lib/firebase';
+import { signOut, onAuthStateChanged, User } from 'firebase/auth';
 
-interface ChatMsg { role: 'user' | 'ai'; text: string; model?: string; tokens?: number; latency?: string; }
-
-const CHAT_HISTORY_INITIAL: ChatMsg[] = [
-  { role: 'user', text: 'Help me plan a 2-week launch for a Bangla AI study app for HSC students. Budget under 50k TK.' },
-  { role: 'ai', model: 'claude', text: `Here's a forcing-functions plan, not a calendar.\n\n**Week 1 — Credibility**\n1. One 60-second hero video in Bangla solving a real 2024 HSC physics problem\n2. Three creator partnerships (50k–250k follower range), each producing 1 reel + 1 IG story\n3. Public "build log" thread on Facebook for daily progress\n\n**Week 2 — Retention**\n4. Open early access with a 3-question diagnostic that places each student on a track\n5. Track D7 of free users — north star is >32% retention\n\nSkip discount-driven acquisition. HSC students respond to peers and outcomes, not promos.\n\nBudget split: 60% creator deals, 25% production, 15% paid amplification of the top-performing organic post.`, tokens: 3420, latency: '2.1s' },
-  { role: 'user', text: 'Good. Now give me a creator brief I can send to a YouTuber tomorrow.' },
-];
-
-function Markdown({ text }: { text: string }) {
-  const blocks = text.split(/\n\n+/);
-  return (
-    <div>
-      {blocks.map((b, i) => {
-        if (b.startsWith('**') && b.endsWith('**')) {
-          return <div key={i} style={{ fontWeight: 600, fontSize: 14, marginTop: i ? 14 : 0, marginBottom: 6 }}>{b.replace(/\*\*/g, '')}</div>;
-        }
-        if (/^\d+\./.test(b.trim())) {
-          const items = b.split('\n').filter(Boolean);
-          return (
-            <ol key={i} style={{ paddingLeft: 22, margin: i ? '8px 0' : '0' }}>
-              {items.map((it, j) => <li key={j} style={{ margin: '4px 0' }}>{it.replace(/^\d+\.\s*/, '')}</li>)}
-            </ol>
-          );
-        }
-        return (
-          <p key={i} style={{ margin: i ? '10px 0' : '0', lineHeight: 1.7 }}>
-            {b.split(/(\*\*.+?\*\*)/g).map((part, k) =>
-              part.startsWith('**') ? <strong key={k}>{part.replace(/\*\*/g, '')}</strong> : <span key={k}>{part}</span>
-            )}
-          </p>
-        );
-      })}
-    </div>
-  );
-}
-
-function ChatBubble({ msg, isStreaming }: { msg: ChatMsg; isStreaming: boolean }) {
-  if (msg.role === 'user') {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 24 }}>
-        <div style={{
-          maxWidth: '72%', padding: '14px 18px', borderRadius: '18px 18px 4px 18px',
-          background: 'linear-gradient(180deg, #1a1530, #15102a)',
-          border: '1px solid rgba(124,58,237,0.25)',
-          fontSize: 14.5, lineHeight: 1.6, color: '#E4E4E7',
-        }}>
-          {msg.text}
-        </div>
-      </div>
-    );
-  }
-  const m = MODEL_BY_ID[msg.model || 'claude'];
-  return (
-    <div style={{ display: 'flex', gap: 12, marginBottom: 28 }}>
-      <div className={m.halo} style={{ width: 32, height: 32, borderRadius: 9, background: '#0a0a0a', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-        <ModelGlyph id={m.id} size={18} />
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-          <div style={{ fontSize: 13, fontWeight: 600 }}>{m.name}</div>
-          <Pill>{msg.tokens || 0} tok</Pill>
-          <Pill>{msg.latency || '–'}</Pill>
-          {isStreaming && <Pill tone="cyan">streaming</Pill>}
-        </div>
-        <div style={{ fontSize: 14.5, lineHeight: 1.7, color: '#E4E4E7' }}>
-          {isStreaming ? <StreamText text={msg.text} speed={10} /> : <Markdown text={msg.text} />}
-        </div>
-        {!isStreaming && (
-          <div style={{ display: 'flex', gap: 6, marginTop: 14 }}>
-            <button className="btn-ghost" style={{ padding: '6px 8px' }}><Icon name="copy" size={13} /></button>
-            <button className="btn-ghost" style={{ padding: '6px 8px' }}><Icon name="refresh" size={13} /></button>
-            <button className="btn-ghost" style={{ padding: '6px 8px' }}><Icon name="compare" size={13} /></button>
-            <div style={{ flex: 1 }} />
-            <div className="mono" style={{ fontSize: 11, color: 'var(--muted-2)' }}>est. cost · $0.012</div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function SidebarItem({ icon, label, active, badge, onClick, collapsed }: {
-  icon: string; label: string; active: boolean; badge?: { text: string; tone: string } | null;
-  onClick: () => void; collapsed: boolean;
-}) {
-  return (
-    <div onClick={onClick} style={{
-      display: 'flex', alignItems: 'center', gap: 12, padding: collapsed ? '11px 12px' : '10px 12px',
-      borderRadius: 10, cursor: 'pointer', position: 'relative',
-      background: active ? 'rgba(124,58,237,0.12)' : 'transparent',
-      border: '1px solid', borderColor: active ? 'rgba(124,58,237,0.3)' : 'transparent',
-      color: active ? '#fff' : 'var(--muted)', transition: 'background .15s ease, color .15s ease',
-    }}
-      onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.04)'; (e.currentTarget as HTMLDivElement).style.color = '#fff'; } }}
-      onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; (e.currentTarget as HTMLDivElement).style.color = 'var(--muted)'; } }}
-    >
-      {active && <div style={{ position: 'absolute', left: -1, top: 8, bottom: 8, width: 2, borderRadius: 2, background: '#7C3AED', boxShadow: '0 0 8px #7C3AED' }} />}
-      <Icon name={icon} size={17} stroke={active ? '#C4B5FD' : 'currentColor'} />
-      {!collapsed && <div style={{ fontSize: 13.5, fontWeight: active ? 500 : 450, flex: 1 }}>{label}</div>}
-      {!collapsed && badge && <Pill tone={badge.tone as 'violet'}>{badge.text}</Pill>}
-    </div>
-  );
-}
-
-function Metric({ label, value, bar, tone }: { label: string; value: string; bar: number; tone: string }) {
-  const colors: Record<string, string> = { green: '#22C55E', violet: '#A78BFA', cyan: '#00D4FF', orange: '#F59E0B' };
-  const c = colors[tone] || '#7C3AED';
-  return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-        <span style={{ color: 'var(--muted)' }}>{label}</span>
-        <span className="mono" style={{ color: '#E4E4E7' }}>{value}</span>
-      </div>
-      <div style={{ height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
-        <div style={{ width: `${bar}%`, height: '100%', background: c, boxShadow: `0 0 8px ${c}` }} />
-      </div>
-    </div>
-  );
-}
-
-export function DashboardPage({ setPage, openModelPicker, currentModel, setCurrentModel, openApiKeys }: {
+interface DashboardPageProps {
   setPage: (p: Page) => void;
-  openModelPicker: () => void;
   currentModel: string;
   setCurrentModel: (m: string) => void;
+  openModelPicker: () => void;
   openApiKeys: () => void;
-}) {
-  const [collapsed, setCollapsed] = useState(false);
-  const [active, setActive] = useState('new');
-  const [history, setHistory] = useState<ChatMsg[]>(CHAT_HISTORY_INITIAL);
-  const [draft, setDraft] = useState('');
-  const [streaming, setStreaming] = useState(false);
-  const [compareMode, setCompareMode] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const m = MODEL_BY_ID[currentModel];
+}
 
+export function DashboardPage({ setPage, openModelPicker, openApiKeys }: DashboardPageProps) {
+  const [user, setUser] = useState<User | null>(null);
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [chartRange, setChartRange] = useState<'7D' | '30D' | 'All'>('7D');
+
+  // Monitor Auth State for display
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [history.length, streaming]);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
 
-  const send = () => {
-    if (!draft.trim()) return;
-    const text = draft.trim();
-    setDraft('');
-    setHistory(h => [...h, { role: 'user', text }]);
-    setStreaming(true);
-    setTimeout(() => {
-      setHistory(h => [...h, { role: 'ai', model: currentModel, text: "Here's a creator brief you can send tomorrow.\n\n**Subject:** Sponsored reel — Bangla AI study app for HSC\n\nWe'd love a 60–75s reel where you solve one real HSC physics problem with our app on screen. Tone: like helping a younger sibling. Show: scan a question → app explains in Bangla → solve in <90 seconds.\n\nDeliverables: 1 reel, 1 IG story sequence (3 frames), permission to whitelist for paid amplification.\nTimeline: 5 days from brief approval.\nBudget: 12,000 TK + a 1-year Pro account.\n\nLet me know if you want me to draft the script too.", tokens: 1820, latency: '1.4s' }]);
-      setStreaming(false);
-    }, 1400);
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      setPage('landing');
+    } catch (err) {
+      console.error('Sign out error', err);
+    }
   };
 
-  const sidebar = [
-    { id: 'compare',  icon: 'compare', label: 'Compare mode', badge: { text: 'USP', tone: 'violet' } },
-    { id: 'history',  icon: 'history', label: 'Chat history',  badge: null },
-    { id: 'fav',      icon: 'star',    label: 'Favorites',     badge: null },
-    { id: 'models',   icon: 'cube',    label: 'Models',        badge: null },
-    { id: 'keys',     icon: 'key',     label: 'API keys',      badge: null },
-    { id: 'billing',  icon: 'card',    label: 'Billing',       badge: null },
-    { id: 'settings', icon: 'cog',     label: 'Settings',      badge: null },
-  ];
-
-  const recent = [
-    { t: 'Bangla AI launch plan',    sub: '2 min ago',  model: 'claude'   },
-    { t: 'Refactor Python utils',    sub: '1h ago',     model: 'deepseek' },
-    { t: 'Cover letter — Senior PM', sub: 'Yesterday',  model: 'gpt5'     },
-    { t: 'Compare: marketing copy',  sub: '2 days ago', model: 'gemini'   },
-    { t: 'Translate contract → BN',  sub: '3 days ago', model: 'kimi'     },
-  ];
-
   return (
-    <div className="page-enter" style={{ display: 'grid', gridTemplateColumns: `${collapsed ? 68 : 248}px 1fr 320px`, height: 'calc(100vh - 60px)', background: '#0a0a0a' }}>
-      {/* SIDEBAR */}
-      <aside style={{ borderRight: '1px solid var(--border)', background: 'rgba(13,13,13,0.6)', padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 14, overflow: 'hidden' }}>
-        <button className="btn-primary" style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, justifyContent: collapsed ? 'center' : 'flex-start', fontSize: 13.5 }}>
-          <Icon name="plus" size={15} />
-          {!collapsed && 'New chat'}
-        </button>
+    <div style={styles.dashboardContainer}>
+      
+      {/* 1. LEFT NAVIGATION PANEL */}
+      <aside style={styles.sidebar}>
+        <div>
+          {/* Logo Heading */}
+          <div style={styles.logoRow}>
+            <div style={styles.logoBadge}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5">
+                <path d="M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9L12 2Z" fill="#fff" />
+              </svg>
+            </div>
+            <div>
+              <div style={styles.logoText}>OneAI Hub</div>
+              <div style={styles.logoSubtext}>Premium SaaS</div>
+            </div>
+          </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {sidebar.map(s => (
-            <SidebarItem key={s.id} {...s} active={active === s.id} onClick={() => {
-              setActive(s.id);
-              if (s.id === 'compare') setPage('compare');
-              if (s.id === 'billing') setPage('pricing');
-              if (s.id === 'settings') setPage('settings');
-              if (s.id === 'keys') openApiKeys();
-              if (s.id === 'models') openModelPicker();
-            }} collapsed={collapsed} />
-          ))}
+          {/* Navigation Links */}
+          <nav style={styles.navMenu}>
+            <button 
+              onClick={() => setActiveTab('dashboard')} 
+              style={{...styles.navItem, ...(activeTab === 'dashboard' ? styles.navItemActive : {})}}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="7" height="9" rx="1" />
+                <rect x="14" y="3" width="7" height="5" rx="1" />
+                <rect x="14" y="12" width="7" height="9" rx="1" />
+                <rect x="3" y="16" width="7" height="5" rx="1" />
+              </svg>
+              <span>Dashboard</span>
+            </button>
+
+            <button 
+              onClick={() => setActiveTab('workspaces')} 
+              style={{...styles.navItem, ...(activeTab === 'workspaces' ? styles.navItemActive : {})}}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+              </svg>
+              <span>Workspaces</span>
+            </button>
+
+            <button 
+              onClick={() => openModelPicker()} 
+              style={{...styles.navItem, ...(activeTab === 'models' ? styles.navItemActive : {})}}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                <line x1="12" y1="22.08" x2="12" y2="12" />
+              </svg>
+              <span>Models</span>
+            </button>
+
+            <button 
+              onClick={() => openApiKeys()} 
+              style={{...styles.navItem, ...(activeTab === 'api-keys' ? styles.navItemActive : {})}}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
+              </svg>
+              <span>API Keys</span>
+            </button>
+
+            <button 
+              onClick={() => setPage('pricing')} 
+              style={{...styles.navItem, ...(activeTab === 'billing' ? styles.navItemActive : {})}}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                <line x1="1" y1="10" x2="23" y2="10" />
+              </svg>
+              <span>Billing</span>
+            </button>
+
+            <button 
+              onClick={() => setPage('settings')} 
+              style={{...styles.navItem, ...(activeTab === 'settings' ? styles.navItemActive : {})}}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+              <span>Settings</span>
+            </button>
+          </nav>
         </div>
 
-        {!collapsed && (
-          <>
-            <div className="mono" style={{ fontSize: 10.5, letterSpacing: 0.8, textTransform: 'uppercase', color: 'var(--muted-2)', padding: '12px 8px 4px' }}>Recent</div>
-            <div className="scroll-y" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, marginRight: -6, paddingRight: 6 }}>
-              {recent.map((r, i) => (
-                <div key={i} style={{ padding: '8px 10px', borderRadius: 8, cursor: 'pointer', display: 'flex', gap: 10, alignItems: 'center', minWidth: 0, transition: 'background .15s ease' }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.04)'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
-                >
-                  <ModelGlyph id={r.model} size={14} />
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: 13, color: '#E4E4E7', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.t}</div>
-                    <div style={{ fontSize: 11, color: 'var(--muted-2)' }}>{r.sub}</div>
+        {/* Sidebar Footer options */}
+        <div style={styles.sidebarFooter}>
+          <button onClick={() => alert('Support Portal (Simulated)')} style={styles.footerItem}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01" />
+            </svg>
+            <span>Help & Support</span>
+          </button>
+
+          <button onClick={handleSignOut} style={styles.footerItem}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+            </svg>
+            <span>Sign Out</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* 2. MAIN HUB SPACE */}
+      <main style={styles.mainHub}>
+        
+        {/* Dynamic Navigation Header */}
+        <header style={styles.header}>
+          <h2 style={styles.headerTitle}>Overview</h2>
+          
+          <div style={styles.headerControls}>
+            {/* Search inputs */}
+            <div style={styles.searchWrapper}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#71717A" strokeWidth="2.5">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input 
+                type="text" 
+                placeholder="Search models, projects..." 
+                style={styles.searchInput}
+              />
+            </div>
+
+            {/* Notification bell */}
+            <button style={styles.bellButton}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+              <span style={styles.bellBadge} />
+            </button>
+
+            {/* User profile avatar info */}
+            <div style={styles.avatar}>
+              {user?.displayName ? user.displayName[0].toUpperCase() : (user?.email ? user.email[0].toUpperCase() : 'U')}
+            </div>
+          </div>
+        </header>
+
+        {/* Dashboard Rows scrolling viewport */}
+        <div style={styles.scrollArea}>
+          
+          {/* STATS METRIC ROW */}
+          <section style={styles.statsGrid}>
+            
+            {/* Total Tokens Used Card */}
+            <div style={styles.metricCard}>
+              <div style={styles.metricHeader}>
+                <div style={styles.metricIconBox}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                  </svg>
+                </div>
+                <span style={styles.metricPill}>+12.5%</span>
+              </div>
+              <div style={styles.metricValue}>12.4M</div>
+              <div style={styles.metricLabel}>Total Tokens Used</div>
+            </div>
+
+            {/* Active Sessions Card */}
+            <div style={styles.metricCard}>
+              <div style={styles.metricHeader}>
+                <div style={{...styles.metricIconBox, color: '#A78BFA'}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{animation: 'spin 10s linear infinite'}}>
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 6v6l4 2" />
+                  </svg>
+                </div>
+              </div>
+              <div style={styles.metricValue}>142</div>
+              <div style={styles.metricLabel}>Active Sessions</div>
+            </div>
+
+            {/* API Health Card */}
+            <div style={styles.metricCard}>
+              <div style={styles.metricHeader}>
+                <div style={{...styles.metricIconBox, color: '#00D4FF'}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                  </svg>
+                </div>
+                <span style={{...styles.metricPill, background: 'rgba(0, 212, 255, 0.08)', color: '#7DD3FC'}}>Last 24h</span>
+              </div>
+              <div style={{...styles.metricValue, color: '#00D4FF'}}>99.9%</div>
+              <div style={styles.metricLabel}>API Health</div>
+            </div>
+
+            {/* Credit Balance Card */}
+            <div style={styles.metricCard}>
+              <div style={styles.metricHeader}>
+                <div style={{...styles.metricIconBox, color: '#F59E0B'}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="2" y="4" width="20" height="16" rx="2" />
+                    <line x1="12" y1="4" x2="12" y2="20" />
+                  </svg>
+                </div>
+                <button onClick={() => setPage('pricing')} style={styles.metricButton}>Top up</button>
+              </div>
+              <div style={styles.metricValue}>$4,250<span style={{ fontSize: '18px', opacity: 0.5 }}>.00</span></div>
+              <div style={styles.metricLabel}>Credit Balance</div>
+            </div>
+
+          </section>
+
+          {/* TWO COLUMN GRID ROWS */}
+          <div style={styles.twoColRow}>
+            
+            {/* LEFT AREA: Workspaces + Usage Timeline */}
+            <div style={styles.leftColumn}>
+              
+              {/* Active Workspaces block */}
+              <div style={styles.panelSection}>
+                <div style={styles.sectionTitleRow}>
+                  <h3 style={styles.sectionTitle}>Active Workspaces</h3>
+                  <button onClick={() => setActiveTab('workspaces')} style={styles.viewAllBtn}>View All →</button>
+                </div>
+
+                <div style={styles.workspaceGrid}>
+                  
+                  {/* Workspace 1 */}
+                  <div style={styles.workspaceCard}>
+                    <div style={styles.workspaceHeader}>
+                      <div style={styles.workspaceIconPurple}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                        </svg>
+                      </div>
+                      <div style={styles.workspaceTitleBlock}>
+                        <div style={styles.workspaceName}>Customer Support Bot</div>
+                        <div style={styles.statusBox}>
+                          <span style={styles.statusIndicatorGreen} />
+                          <span style={styles.statusTextGreen}>Running</span>
+                        </div>
+                      </div>
+                      <button style={styles.optionDot}>•••</button>
+                    </div>
+
+                    <div style={styles.tagsContainer}>
+                      <span style={styles.tag}>GPT-4 TURBO</span>
+                      <span style={styles.tag}>RETRIEVAL</span>
+                    </div>
+
+                    <div style={styles.workspaceFooter}>
+                      <span style={styles.footerStats}>Tokens Today: <strong style={{ color: '#fff' }}>457k</strong></span>
+                      <button style={styles.actionButton}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                          <polygon points="5 3 19 12 5 21 5 3" />
+                        </svg>
+                        <span>Resume</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Workspace 2 */}
+                  <div style={styles.workspaceCard}>
+                    <div style={styles.workspaceHeader}>
+                      <div style={styles.workspaceIconTeal}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <polyline points="14 2 14 8 20 8" />
+                          <line x1="16" y1="13" x2="8" y2="13" />
+                          <line x1="16" y1="17" x2="8" y2="17" />
+                          <polyline points="10 9 9 9 8 9" />
+                        </svg>
+                      </div>
+                      <div style={styles.workspaceTitleBlock}>
+                        <div style={styles.workspaceName}>Legal Doc Analysis</div>
+                        <div style={styles.statusBox}>
+                          <span style={styles.statusIndicatorOrange} />
+                          <span style={styles.statusTextOrange}>Paused</span>
+                        </div>
+                      </div>
+                      <button style={styles.optionDot}>•••</button>
+                    </div>
+
+                    <div style={styles.tagsContainer}>
+                      <span style={styles.tag}>CLAUDE 3.5</span>
+                      <span style={styles.tag}>VISION</span>
+                    </div>
+
+                    <div style={styles.workspaceFooter}>
+                      <span style={styles.footerStats}>Tokens Today: <strong style={{ color: '#fff' }}>12k</strong></span>
+                      <button style={styles.actionButton}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                          <polygon points="5 3 19 12 5 21 5 3" />
+                        </svg>
+                        <span>Resume</span>
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* Usage Over Time (Chart section) */}
+              <div style={styles.panelSection}>
+                <div style={styles.sectionTitleRow}>
+                  <h3 style={styles.sectionTitle}>Usage Over Time</h3>
+                  <div style={styles.tabButtons}>
+                    {(['7D', '30D', 'All'] as const).map(item => (
+                      <button 
+                        key={item} 
+                        onClick={() => setChartRange(item)} 
+                        style={{...styles.tabBtn, ...(chartRange === item ? styles.tabBtnActive : {})}}
+                      >
+                        {item}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
-          </>
-        )}
 
-        <div style={{ marginTop: 'auto', paddingTop: 12, borderTop: '1px solid var(--border)' }}>
-          {!collapsed ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 6px' }}>
-              <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'linear-gradient(135deg, #7C3AED, #00D4FF)', display: 'grid', placeItems: 'center', fontWeight: 600, fontSize: 13 }}>R</div>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 500 }}>Rafiul Hasan</div>
-                <div style={{ fontSize: 11, color: 'var(--muted-2)' }}>Pro plan</div>
+                <div style={styles.chartWrapper}>
+                  {/* Premium Vector SVG Graphic for static wave rendering */}
+                  <svg width="100%" height="160" viewBox="0 0 600 160" preserveAspectRatio="none">
+                    <defs>
+                      <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#00D4FF" stopOpacity="0.25" />
+                        <stop offset="100%" stopColor="#7C3AED" stopOpacity="0.0" />
+                      </linearGradient>
+                      <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feDropShadow dx="0" dy="4" stdDeviation="6" floodColor="#00D4FF" floodOpacity="0.4" />
+                      </filter>
+                    </defs>
+
+                    {/* Faint Horizontal Helper Gridlines */}
+                    <line x1="0" y1="40" x2="600" y2="40" stroke="rgba(255,255,255,0.02)" strokeWidth="1" />
+                    <line x1="0" y1="80" x2="600" y2="80" stroke="rgba(255,255,255,0.02)" strokeWidth="1" />
+                    <line x1="0" y1="120" x2="600" y2="120" stroke="rgba(255,255,255,0.02)" strokeWidth="1" />
+
+                    {/* Gradient Area Fill Under Curve */}
+                    <path 
+                      d="M 0 135 C 50 115, 100 80, 150 95 C 200 110, 250 100, 300 85 C 350 70, 400 35, 450 65 C 500 95, 550 115, 600 50 L 600 160 L 0 160 Z" 
+                      fill="url(#chartGradient)" 
+                    />
+
+                    {/* Glowing Accent Main Path Line */}
+                    <path 
+                      d="M 0 135 C 50 115, 100 80, 150 95 C 200 110, 250 100, 300 85 C 350 70, 400 35, 450 65 C 500 95, 550 115, 600 50" 
+                      fill="none" 
+                      stroke="#00D4FF" 
+                      strokeWidth="3.5" 
+                      filter="url(#glow)" 
+                      strokeLinecap="round"
+                    />
+
+                    {/* Interactive nodes or highlight indicators */}
+                    <circle cx="450" cy="65" r="5" fill="#fff" stroke="#00D4FF" strokeWidth="2.5" />
+                    <circle cx="300" cy="85" r="3.5" fill="#00D4FF" />
+                  </svg>
+
+                  {/* Horizontal Axis labels */}
+                  <div style={styles.chartXLabels}>
+                    <span>Mon</span>
+                    <span>Tue</span>
+                    <span>Wed</span>
+                    <span>Thu</span>
+                    <span>Fri</span>
+                    <span>Sat</span>
+                    <span>Sun</span>
+                  </div>
+                </div>
               </div>
-              <Icon name="cog" size={14} stroke="#71717A" />
-            </div>
-          ) : (
-            <div style={{ display: 'grid', placeItems: 'center' }}>
-              <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'linear-gradient(135deg, #7C3AED, #00D4FF)', display: 'grid', placeItems: 'center', fontWeight: 600, fontSize: 13 }}>R</div>
-            </div>
-          )}
-          <button className="btn-ghost" style={{ width: '100%', marginTop: 8, padding: '6px 8px', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={() => setCollapsed(c => !c)}>
-            <Icon name="menu" size={12} /> {!collapsed && 'Collapse'}
-          </button>
-        </div>
-      </aside>
 
-      {/* MAIN CHAT */}
-      <main style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ height: 60, borderBottom: '1px solid var(--border)', padding: '0 22px', display: 'flex', alignItems: 'center', gap: 14, background: 'rgba(10,10,10,0.6)', backdropFilter: 'blur(10px)' }}>
-          <button onClick={openModelPicker} style={{ display: 'inline-flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', borderRadius: 10, padding: '7px 12px 7px 8px', cursor: 'pointer', color: 'inherit', fontFamily: 'inherit' }}>
-            <div className={m.halo} style={{ width: 24, height: 24, borderRadius: 7, background: '#0a0a0a', display: 'grid', placeItems: 'center' }}>
-              <ModelGlyph id={m.id} size={14} />
-            </div>
-            <div style={{ textAlign: 'left' }}>
-              <div style={{ fontSize: 13, fontWeight: 500 }}>{m.name}</div>
-              <div className="mono" style={{ fontSize: 10, color: 'var(--muted-2)', letterSpacing: 0.4 }}>{m.tag}</div>
-            </div>
-            <Icon name="arrow" size={12} stroke="#71717A" />
-          </button>
+              {/* Recent Activity Table */}
+              <div style={styles.panelSection}>
+                <div style={styles.sectionTitleRow}>
+                  <h3 style={styles.sectionTitle}>Recent Activity</h3>
+                  <button onClick={() => alert('Filter Active Activity')} style={styles.filterBtn}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                    </svg>
+                    <span>Filter</span>
+                  </button>
+                </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', flex: 1, maxWidth: 420 }}>
-            <Icon name="search" size={14} stroke="#71717A" />
-            <input placeholder="Search across all chats…" style={{ background: 'transparent', border: 'none', outline: 'none', color: 'inherit', fontFamily: 'inherit', fontSize: 13, flex: 1 }} />
-            <span className="mono" style={{ fontSize: 10, color: 'var(--muted-2)', padding: '2px 6px', borderRadius: 4, background: 'rgba(255,255,255,0.04)' }}>⌘K</span>
-          </div>
+                <div style={styles.tableWrapper}>
+                  <table style={styles.table}>
+                    <thead>
+                      <tr>
+                        <th style={styles.th}>MODEL</th>
+                        <th style={styles.th}>WORKSPACE</th>
+                        <th style={styles.th}>TIMESTAMP</th>
+                        <th style={styles.th}>TOKENS</th>
+                        <th style={styles.th}>COST</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr style={styles.tr}>
+                        <td style={styles.td}>
+                          <div style={styles.modelDotCol}>
+                            <span style={{...styles.dotIndicator, background: '#A78BFA'}} />
+                            <strong style={{ color: '#fff' }}>GPT-4 Turbo</strong>
+                          </div>
+                        </td>
+                        <td style={styles.td}>Customer Support Bot</td>
+                        <td style={styles.td}>10:42:05 AM</td>
+                        <td style={styles.td}>1,248</td>
+                        <td style={{...styles.td, color: '#34D399', fontWeight: 600}}>$0.012</td>
+                      </tr>
 
-          <div style={{ flex: 1 }} />
-          <div style={{ padding: '6px 10px', borderRadius: 8, background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.25)', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22C55E', boxShadow: '0 0 8px #22C55E' }} />
-            <span className="mono" style={{ fontSize: 11, color: '#86EFAC' }}>1.42M tok · this mo</span>
-          </div>
-          <button className="btn-ghost" style={{ padding: '8px 10px', position: 'relative' }}>
-            <Icon name="bell" size={14} />
-            <span style={{ position: 'absolute', top: 6, right: 7, width: 6, height: 6, borderRadius: '50%', background: '#EF4444' }} />
-          </button>
-          <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #7C3AED, #00D4FF)', display: 'grid', placeItems: 'center', fontWeight: 600, fontSize: 13 }}>R</div>
-        </div>
+                      <tr style={styles.tr}>
+                        <td style={styles.td}>
+                          <div style={styles.modelDotCol}>
+                            <span style={{...styles.dotIndicator, background: '#00D4FF'}} />
+                            <strong style={{ color: '#fff' }}>Claude 3.5 Sonnet</strong>
+                          </div>
+                        </td>
+                        <td style={styles.td}>Legal Doc Analysis</td>
+                        <td style={styles.td}>10:38:12 AM</td>
+                        <td style={styles.td}>8,458</td>
+                        <td style={{...styles.td, color: '#34D399', fontWeight: 600}}>$0.025</td>
+                      </tr>
 
-        <div ref={scrollRef} className="scroll-y" style={{ flex: 1, padding: '32px 64px', maxWidth: 920, width: '100%', margin: '0 auto' }}>
-          {history.map((msg, i) => <ChatBubble key={i} msg={msg} isStreaming={false} />)}
-          {streaming && <ChatBubble msg={{ role: 'ai', model: currentModel, text: '' }} isStreaming={true} />}
-          {streaming && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--muted)', fontSize: 12.5, marginLeft: 44 }}>
-              <span className="mono">{m.name} is thinking</span>
-              <span className="dot" /><span className="dot" /><span className="dot" />
-            </div>
-          )}
-        </div>
+                      <tr style={styles.tr}>
+                        <td style={styles.td}>
+                          <div style={styles.modelDotCol}>
+                            <span style={{...styles.dotIndicator, background: '#A78BFA'}} />
+                            <strong style={{ color: '#fff' }}>GPT-4 Turbo</strong>
+                          </div>
+                        </td>
+                        <td style={styles.td}>Internal KB Search</td>
+                        <td style={styles.td}>10:15:00 AM</td>
+                        <td style={styles.td}>420</td>
+                        <td style={{...styles.td, color: '#34D399', fontWeight: 600}}>$0.004</td>
+                      </tr>
 
-        <div style={{ padding: '0 64px 24px' }}>
-          <div style={{ maxWidth: 920, margin: '0 auto' }}>
-            <div className={`card ${compareMode ? 'glow-ring' : ''}`} style={{ padding: 14, background: 'rgba(17,17,17,0.85)', backdropFilter: 'blur(20px)', borderColor: compareMode ? 'rgba(124,58,237,0.45)' : 'var(--border)', boxShadow: '0 -10px 40px -10px rgba(0,0,0,0.6)' }}>
-              <textarea
-                rows={2} value={draft}
-                onChange={e => setDraft(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
-                placeholder={compareMode ? 'Compare mode · send to 3 models at once…' : `Message ${m.name}…`}
-                style={{ background: 'transparent', border: 'none', outline: 'none', resize: 'none', width: '100%', color: '#fff', fontSize: 15, fontFamily: 'inherit', lineHeight: 1.5, padding: '4px 4px 8px' }}
-              />
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <button className="btn-ghost" style={{ padding: '8px 10px' }}><Icon name="paperclip" size={15} /></button>
-                <button className="btn-ghost" style={{ padding: '8px 10px' }}><Icon name="mic" size={15} /></button>
-                <button onClick={() => setCompareMode(c => !c)} style={{
-                  background: compareMode ? 'rgba(124,58,237,0.18)' : 'rgba(255,255,255,0.04)',
-                  borderColor: compareMode ? 'rgba(124,58,237,0.45)' : 'var(--border)',
-                  color: compareMode ? '#C4B5FD' : '#E4E4E7',
-                  border: '1px solid', borderRadius: 10, padding: '8px 12px', fontFamily: 'inherit', cursor: 'pointer',
-                  display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13,
-                }}>
-                  <Icon name="compare" size={14} /> Compare
-                </button>
-                <div style={{ flex: 1 }} />
-                <div className="mono" style={{ fontSize: 11, color: 'var(--muted-2)' }}>↵ to send · ⇧↵ for newline</div>
-                <button className="btn-primary" style={{ padding: '9px 14px', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }} onClick={send} disabled={streaming}>
-                  Send <Icon name="send" size={13} />
-                </button>
+                      <tr style={styles.tr}>
+                        <td style={styles.td}>
+                          <div style={styles.modelDotCol}>
+                            <span style={{...styles.dotIndicator, background: '#F59E0B'}} />
+                            <strong style={{ color: '#fff' }}>DALL-E 3</strong>
+                          </div>
+                        </td>
+                        <td style={styles.td}>Marketing Asset Gen</td>
+                        <td style={styles.td}>09:55:22 AM</td>
+                        <td style={styles.td}>1 img</td>
+                        <td style={{...styles.td, color: '#34D399', fontWeight: 600}}>$0.040</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
+
             </div>
+
+            {/* RIGHT COLUMN: Quick Actions, Top Models, Status Indicator */}
+            <div style={styles.rightColumn}>
+              
+              {/* Quick Actions Panel */}
+              <div style={styles.sidebarPanel}>
+                <h4 style={styles.panelTitle}>Quick Actions</h4>
+                
+                <div style={styles.actionStack}>
+                  
+                  {/* Action 1 */}
+                  <button onClick={() => openApiKeys()} style={styles.actionRow}>
+                    <div style={styles.actionLabelCol}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#71717A" strokeWidth="2">
+                        <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3" />
+                      </svg>
+                      <span>New API Key</span>
+                    </div>
+                    <div style={styles.actionButtonBox}>+</div>
+                  </button>
+
+                  {/* Action 2 */}
+                  <button onClick={() => setPage('pricing')} style={styles.actionRow}>
+                    <div style={styles.actionLabelCol}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#71717A" strokeWidth="2">
+                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                        <line x1="1" y1="10" x2="23" y2="10" />
+                      </svg>
+                      <span>Buy Credits</span>
+                    </div>
+                    <div style={styles.actionButtonBox}>→</div>
+                  </button>
+
+                  {/* Action 3 */}
+                  <button onClick={() => alert('Invite Team Members flow (Simulated)')} style={styles.actionRowDashed}>
+                    <div style={styles.actionLabelCol}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#71717A" strokeWidth="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                      </svg>
+                      <span style={{ color: '#71717A' }}>Invite Team</span>
+                    </div>
+                  </button>
+
+                </div>
+              </div>
+
+              {/* Top Models Stack */}
+              <div style={styles.sidebarPanel}>
+                <h4 style={styles.panelTitle}>Top Models</h4>
+                
+                <div style={styles.modelsStack}>
+                  
+                  {/* Model row 1 */}
+                  <div style={styles.modelUsageRow}>
+                    <div style={styles.modelRowHeader}>
+                      <div style={styles.modelBadgeAndLabel}>
+                        <div style={styles.modelSymbolPurple}>G4</div>
+                        <div>
+                          <div style={styles.modelTextLabel}>GPT-4 Turbo</div>
+                          <div style={styles.modelUsageSubtitle}>64% of usage</div>
+                        </div>
+                      </div>
+                      <span style={styles.modelCount}>7.8M</span>
+                    </div>
+                    <div style={styles.progressContainer}>
+                      <div style={{...styles.progressBar, width: '64%', background: '#7C3AED'}} />
+                    </div>
+                  </div>
+
+                  {/* Model row 2 */}
+                  <div style={styles.modelUsageRow}>
+                    <div style={styles.modelRowHeader}>
+                      <div style={styles.modelBadgeAndLabel}>
+                        <div style={styles.modelSymbolTeal}>C3</div>
+                        <div>
+                          <div style={styles.modelTextLabel}>Claude 3.5</div>
+                          <div style={styles.modelUsageSubtitle}>28% of usage</div>
+                        </div>
+                      </div>
+                      <span style={styles.modelCount}>3.4M</span>
+                    </div>
+                    <div style={styles.progressContainer}>
+                      <div style={{...styles.progressBar, width: '28%', background: '#00D4FF'}} />
+                    </div>
+                  </div>
+
+                  {/* Model row 3 */}
+                  <div style={styles.modelUsageRow}>
+                    <div style={styles.modelRowHeader}>
+                      <div style={styles.modelBadgeAndLabel}>
+                        <div style={styles.modelSymbolGray}>L3</div>
+                        <div>
+                          <div style={styles.modelTextLabel}>Llama 3 70B</div>
+                          <div style={styles.modelUsageSubtitle}>8% of usage</div>
+                        </div>
+                      </div>
+                      <span style={styles.modelCount}>1.2M</span>
+                    </div>
+                    <div style={styles.progressContainer}>
+                      <div style={{...styles.progressBar, width: '8%', background: '#4B5563'}} />
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* System Connection Status Box */}
+              <div style={styles.statusPanel}>
+                <div style={styles.statusIconRow}>
+                  <div style={styles.systemPulseCircle}>
+                    <span style={styles.pulseRing} />
+                    <span style={styles.pulseDot} />
+                  </div>
+                  <div>
+                    <div style={styles.statusTitle}>All Systems Nominal</div>
+                    <div style={styles.statusLatency}>Latency: 42ms (us-east-1)</div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
           </div>
+
         </div>
       </main>
-
-      {/* RIGHT PANEL */}
-      <aside style={{ borderLeft: '1px solid var(--border)', background: 'rgba(13,13,13,0.6)', padding: '20px 18px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div className="mono" style={{ fontSize: 10.5, letterSpacing: 0.8, textTransform: 'uppercase', color: 'var(--muted-2)' }}>Current model</div>
-        <div className="card" style={{ padding: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div className={m.halo} style={{ width: 42, height: 42, borderRadius: 11, background: '#0a0a0a', display: 'grid', placeItems: 'center' }}>
-              <ModelGlyph id={m.id} size={24} />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 15, fontWeight: 600 }}>{m.name}</div>
-              <div style={{ fontSize: 12, color: 'var(--muted)' }}>{m.vendor}</div>
-            </div>
-          </div>
-          <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <Metric label="Speed"           value={`${m.speed}/100`} bar={m.speed} tone="green" />
-            <Metric label="Intelligence"    value={`${m.iq}/100`}   bar={m.iq}    tone="violet" />
-            <Metric label="Cost efficiency" value={m.cost}          bar={m.cost === 'Free' ? 100 : m.cost === 'Low' ? 80 : m.cost === 'Med' ? 55 : 30} tone="cyan" />
-          </div>
-        </div>
-
-        <div className="card" style={{ padding: 14 }}>
-          <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>Context window</div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-            <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 24, fontWeight: 600 }}>200K</div>
-            <div className="mono" style={{ fontSize: 11, color: 'var(--muted-2)' }}>tokens</div>
-          </div>
-          <div style={{ height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3, marginTop: 10, overflow: 'hidden' }}>
-            <div style={{ width: '18%', height: '100%', background: 'linear-gradient(90deg, #7C3AED, #00D4FF)' }} />
-          </div>
-          <div className="mono" style={{ fontSize: 10.5, color: 'var(--muted-2)', marginTop: 6 }}>36,420 / 200,000 used</div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div className="card" style={{ padding: 14 }}>
-            <div className="mono" style={{ fontSize: 10, color: 'var(--muted-2)', letterSpacing: 0.6, textTransform: 'uppercase' }}>This chat</div>
-            <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 22, fontWeight: 600, marginTop: 6 }}>5,240</div>
-            <div style={{ fontSize: 11, color: 'var(--muted)' }}>tokens used</div>
-          </div>
-          <div className="card" style={{ padding: 14 }}>
-            <div className="mono" style={{ fontSize: 10, color: 'var(--muted-2)', letterSpacing: 0.6, textTransform: 'uppercase' }}>Est. cost</div>
-            <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 22, fontWeight: 600, marginTop: 6 }}>$0.21</div>
-            <div style={{ fontSize: 11, color: '#22C55E' }}>↓ 38% vs direct</div>
-          </div>
-        </div>
-
-        <div className="card" style={{ padding: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-            <Icon name="sparkles" size={14} stroke="#C4B5FD" />
-            <div style={{ fontSize: 13, fontWeight: 600 }}>{m.name} excels at</div>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {(m.id === 'claude' ? ['Long-context analysis', 'Nuanced writing', 'Code review', 'Multi-step reasoning'] :
-              m.id === 'gpt5'  ? ['General reasoning', 'Creative writing', 'Image understanding', 'Tool use'] :
-              ['Multimodal tasks', 'Search-grounded answers', 'Fast retrieval', 'Translation']).map((s, i) => (
-              <div key={i} style={{ fontSize: 12.5, color: '#E4E4E7', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 5, height: 5, borderRadius: '50%', background: m.accent, boxShadow: `0 0 8px ${m.accent}` }} />
-                {s}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <button className="btn-ghost" style={{ padding: '10px 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 13 }} onClick={openModelPicker}>
-          <Icon name="route" size={14} /> Switch model
-        </button>
-      </aside>
     </div>
   );
 }
+
+// Inline styles for pixel-perfect match of OneAI Hub high-fidelity layout
+const styles: Record<string, React.CSSProperties> = {
+  dashboardContainer: {
+    display: 'flex',
+    width: '100vw',
+    height: '100vh',
+    background: '#07090c',
+    color: '#fff',
+    overflow: 'hidden',
+    position: 'fixed',
+    inset: 0,
+    zIndex: 900,
+  },
+  sidebar: {
+    width: '240px',
+    background: '#09090c',
+    borderRight: '1px solid rgba(255, 255, 255, 0.05)',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    padding: '16px 12px',
+    flexShrink: 0,
+  },
+  logoRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '12px 8px',
+    marginBottom: '24px',
+  },
+  logoBadge: {
+    width: '28px',
+    height: '28px',
+    borderRadius: '7px',
+    background: 'conic-gradient(from 210deg at 50% 50%, #7C3AED, #00D4FF, #7C3AED)',
+    display: 'grid',
+    placeItems: 'center',
+    boxShadow: '0 0 14px rgba(124, 58, 237, 0.35)',
+  },
+  logoText: {
+    fontFamily: 'Space Grotesk, sans-serif',
+    fontSize: '15px',
+    fontWeight: 700,
+    letterSpacing: '-0.3px',
+  },
+  logoSubtext: {
+    fontSize: '10.5px',
+    color: '#4B5563',
+    fontWeight: 500,
+  },
+  navMenu: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+  },
+  navItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '10px 12px',
+    borderRadius: '10px',
+    background: 'transparent',
+    border: 'none',
+    color: '#71717A',
+    fontSize: '13.5px',
+    fontWeight: 500,
+    cursor: 'pointer',
+    width: '100%',
+    textAlign: 'left',
+    transition: 'background .15s ease, color .15s ease',
+  },
+  navItemActive: {
+    background: 'rgba(124, 58, 237, 0.1)',
+    border: '1px solid rgba(124, 58, 237, 0.25)',
+    color: '#fff',
+    boxShadow: '0 0 12px -3px rgba(124, 58, 237, 0.15)',
+  },
+  sidebarFooter: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+    borderTop: '1px solid rgba(255,255,255,0.05)',
+    paddingTop: '16px',
+  },
+  footerItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '10px 12px',
+    background: 'transparent',
+    border: 'none',
+    color: '#4B5563',
+    fontSize: '13px',
+    fontWeight: 500,
+    cursor: 'pointer',
+    textAlign: 'left',
+    width: '100%',
+    transition: 'color .15s ease',
+  },
+  mainHub: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
+    overflow: 'hidden',
+  },
+  header: {
+    height: '68px',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '0 28px',
+    background: '#07090c',
+    flexShrink: 0,
+  },
+  headerTitle: {
+    fontFamily: 'Space Grotesk, sans-serif',
+    fontSize: '20px',
+    fontWeight: 600,
+    color: '#fff',
+  },
+  headerControls: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+  },
+  searchWrapper: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '7px 12px',
+    borderRadius: '10px',
+    background: 'rgba(255,255,255,0.02)',
+    border: '1px solid rgba(255,255,255,0.05)',
+    width: '220px',
+  },
+  searchInput: {
+    background: 'transparent',
+    border: 'none',
+    outline: 'none',
+    color: 'inherit',
+    fontFamily: 'inherit',
+    fontSize: '12.5px',
+    flex: 1,
+  },
+  bellButton: {
+    background: 'transparent',
+    border: 'none',
+    color: '#71717A',
+    cursor: 'pointer',
+    position: 'relative',
+    display: 'grid',
+    placeItems: 'center',
+    padding: '6px',
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: '4px',
+    right: '4px',
+    width: '6px',
+    height: '6px',
+    borderRadius: '50%',
+    background: '#EF4444',
+  },
+  avatar: {
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    background: 'linear-gradient(135deg, #7C3AED, #00D4FF)',
+    display: 'grid',
+    placeItems: 'center',
+    fontWeight: 600,
+    fontSize: '13px',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+  },
+  scrollArea: {
+    flex: 1,
+    overflowY: 'auto',
+    padding: '24px 28px 48px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '24px',
+  },
+  statsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, 1fr)',
+    gap: '16px',
+  },
+  metricCard: {
+    background: 'rgba(255, 255, 255, 0.01)',
+    border: '1px solid rgba(255, 255, 255, 0.05)',
+    borderRadius: '14px',
+    padding: '18px 20px',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+  },
+  metricHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '12px',
+  },
+  metricIconBox: {
+    width: '30px',
+    height: '30px',
+    borderRadius: '8px',
+    background: 'rgba(255,255,255,0.03)',
+    border: '1px solid rgba(255,255,255,0.05)',
+    color: '#A78BFA',
+    display: 'grid',
+    placeItems: 'center',
+  },
+  metricPill: {
+    fontSize: '11px',
+    fontWeight: 600,
+    background: 'rgba(52, 211, 153, 0.08)',
+    color: '#34D399',
+    padding: '3px 8px',
+    borderRadius: '6px',
+  },
+  metricValue: {
+    fontFamily: 'Space Grotesk, sans-serif',
+    fontSize: '26px',
+    fontWeight: 600,
+    marginBottom: '4px',
+    color: '#fff',
+  },
+  metricLabel: {
+    fontSize: '12.5px',
+    color: '#71717A',
+    fontWeight: 500,
+  },
+  metricButton: {
+    background: 'rgba(245, 158, 11, 0.08)',
+    border: '1px solid rgba(245, 158, 11, 0.2)',
+    borderRadius: '6px',
+    color: '#F59E0B',
+    fontSize: '11px',
+    fontWeight: 600,
+    padding: '3px 8px',
+    cursor: 'pointer',
+  },
+  twoColRow: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 340px',
+    gap: '24px',
+  },
+  leftColumn: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '24px',
+  },
+  rightColumn: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '24px',
+  },
+  panelSection: {
+    background: 'rgba(255,255,255,0.01)',
+    border: '1px solid rgba(255,255,255,0.04)',
+    borderRadius: '16px',
+    padding: '20px 24px',
+  },
+  sectionTitleRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '20px',
+  },
+  sectionTitle: {
+    fontFamily: 'Space Grotesk, sans-serif',
+    fontSize: '16px',
+    fontWeight: 600,
+    color: '#fff',
+  },
+  viewAllBtn: {
+    background: 'transparent',
+    border: 'none',
+    color: '#71717A',
+    fontSize: '12.5px',
+    cursor: 'pointer',
+    fontWeight: 500,
+  },
+  workspaceGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '16px',
+  },
+  workspaceCard: {
+    background: 'rgba(255,255,255,0.01)',
+    border: '1px solid rgba(255,255,255,0.05)',
+    borderRadius: '14px',
+    padding: '16px',
+  },
+  workspaceHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    position: 'relative',
+  },
+  workspaceIconPurple: {
+    width: '32px',
+    height: '32px',
+    borderRadius: '9px',
+    background: 'rgba(124, 58, 237, 0.08)',
+    border: '1px solid rgba(124, 58, 237, 0.2)',
+    color: '#A78BFA',
+    display: 'grid',
+    placeItems: 'center',
+  },
+  workspaceIconTeal: {
+    width: '32px',
+    height: '32px',
+    borderRadius: '9px',
+    background: 'rgba(0, 212, 255, 0.08)',
+    border: '1px solid rgba(0, 212, 255, 0.2)',
+    color: '#00D4FF',
+    display: 'grid',
+    placeItems: 'center',
+  },
+  workspaceTitleBlock: {
+    flex: 1,
+  },
+  workspaceName: {
+    fontSize: '13.5px',
+    fontWeight: 600,
+    color: '#fff',
+    marginBottom: '2px',
+  },
+  statusBox: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '5px',
+  },
+  statusIndicatorGreen: {
+    width: '6px',
+    height: '6px',
+    borderRadius: '50%',
+    background: '#34D399',
+    boxShadow: '0 0 6px #34D399',
+  },
+  statusTextGreen: {
+    fontSize: '11px',
+    color: '#34D399',
+    fontWeight: 500,
+  },
+  statusIndicatorOrange: {
+    width: '6px',
+    height: '6px',
+    borderRadius: '50%',
+    background: '#F59E0B',
+    boxShadow: '0 0 6px #F59E0B',
+  },
+  statusTextOrange: {
+    fontSize: '11px',
+    color: '#F59E0B',
+    fontWeight: 500,
+  },
+  optionDot: {
+    background: 'transparent',
+    border: 'none',
+    color: '#4B5563',
+    cursor: 'pointer',
+    fontSize: '12px',
+  },
+  tagsContainer: {
+    display: 'flex',
+    gap: '6px',
+    marginTop: '16px',
+    marginBottom: '16px',
+  },
+  tag: {
+    fontSize: '9.5px',
+    fontWeight: 600,
+    letterSpacing: '0.5px',
+    background: 'rgba(255,255,255,0.03)',
+    border: '1px solid rgba(255,255,255,0.05)',
+    color: '#71717A',
+    padding: '2px 6px',
+    borderRadius: '5px',
+  },
+  workspaceFooter: {
+    borderTop: '1px solid rgba(255,255,255,0.03)',
+    paddingTop: '12px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  footerStats: {
+    fontSize: '11.5px',
+    color: '#71717A',
+  },
+  actionButton: {
+    background: 'rgba(255, 255, 255, 0.02)',
+    border: '1px solid rgba(255, 255, 255, 0.05)',
+    borderRadius: '7px',
+    padding: '5px 10px',
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: '11.5px',
+    fontWeight: 500,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  tabButtons: {
+    display: 'inline-flex',
+    padding: '3px',
+    background: 'rgba(255,255,255,0.02)',
+    border: '1px solid rgba(255,255,255,0.04)',
+    borderRadius: '8px',
+  },
+  tabBtn: {
+    background: 'transparent',
+    border: 'none',
+    color: '#71717A',
+    fontSize: '11.5px',
+    fontWeight: 500,
+    padding: '4px 10px',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    transition: 'background .1s ease, color .1s ease',
+  },
+  tabBtnActive: {
+    background: 'rgba(255,255,255,0.05)',
+    color: '#fff',
+  },
+  chartWrapper: {
+    marginTop: '8px',
+  },
+  chartXLabels: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    padding: '12px 6px 0',
+    fontSize: '11.5px',
+    color: '#4B5563',
+    fontFamily: 'inherit',
+  },
+  filterBtn: {
+    background: 'transparent',
+    border: 'none',
+    color: '#71717A',
+    fontSize: '12.5px',
+    fontWeight: 500,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  tableWrapper: {
+    overflowX: 'auto',
+  },
+  table: {
+    width: '100%',
+    borderCollapse: 'collapse',
+    textAlign: 'left',
+  },
+  th: {
+    fontSize: '10.5px',
+    color: '#4B5563',
+    fontWeight: 600,
+    letterSpacing: '0.5px',
+    paddingBottom: '12px',
+    borderBottom: '1px solid rgba(255,255,255,0.03)',
+  },
+  tr: {
+    borderBottom: '1px solid rgba(255,255,255,0.02)',
+    transition: 'background .15s ease',
+  },
+  td: {
+    padding: '12px 0',
+    fontSize: '12.5px',
+    color: '#71717A',
+  },
+  modelDotCol: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  dotIndicator: {
+    width: '6px',
+    height: '6px',
+    borderRadius: '50%',
+  },
+  sidebarPanel: {
+    background: 'rgba(255,255,255,0.01)',
+    border: '1px solid rgba(255,255,255,0.04)',
+    borderRadius: '16px',
+    padding: '20px 24px',
+  },
+  panelTitle: {
+    fontFamily: 'Space Grotesk, sans-serif',
+    fontSize: '14.5px',
+    fontWeight: 600,
+    color: '#fff',
+    marginBottom: '16px',
+  },
+  actionStack: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+  },
+  actionRow: {
+    width: '100%',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    background: 'rgba(255,255,255,0.01)',
+    border: '1px solid rgba(255,255,255,0.04)',
+    borderRadius: '10px',
+    padding: '12px 14px',
+    cursor: 'pointer',
+    transition: 'border-color .1s ease, background .1s ease',
+  },
+  actionRowDashed: {
+    width: '100%',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    background: 'transparent',
+    border: '1px dashed rgba(255,255,255,0.08)',
+    borderRadius: '10px',
+    padding: '12px 14px',
+    cursor: 'pointer',
+    transition: 'border-color .1s ease',
+  },
+  actionLabelCol: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    color: '#fff',
+    fontSize: '13px',
+    fontWeight: 500,
+  },
+  actionButtonBox: {
+    width: '20px',
+    height: '20px',
+    borderRadius: '5px',
+    background: 'rgba(255,255,255,0.03)',
+    border: '1px solid rgba(255,255,255,0.05)',
+    color: '#71717A',
+    fontSize: '12px',
+    display: 'grid',
+    placeItems: 'center',
+  },
+  modelsStack: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '18px',
+  },
+  modelUsageRow: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  modelRowHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modelBadgeAndLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  modelSymbolPurple: {
+    width: '26px',
+    height: '26px',
+    borderRadius: '6px',
+    background: 'rgba(124, 58, 237, 0.1)',
+    border: '1px solid rgba(124, 58, 237, 0.25)',
+    color: '#C4B5FD',
+    fontSize: '10px',
+    fontWeight: 700,
+    display: 'grid',
+    placeItems: 'center',
+  },
+  modelSymbolTeal: {
+    width: '26px',
+    height: '26px',
+    borderRadius: '6px',
+    background: 'rgba(0, 212, 255, 0.1)',
+    border: '1px solid rgba(0, 212, 255, 0.25)',
+    color: '#00D4FF',
+    fontSize: '10px',
+    fontWeight: 700,
+    display: 'grid',
+    placeItems: 'center',
+  },
+  modelSymbolGray: {
+    width: '26px',
+    height: '26px',
+    borderRadius: '6px',
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    color: '#A1A1AA',
+    fontSize: '10px',
+    fontWeight: 700,
+    display: 'grid',
+    placeItems: 'center',
+  },
+  modelTextLabel: {
+    fontSize: '13px',
+    fontWeight: 600,
+    color: '#fff',
+  },
+  modelUsageSubtitle: {
+    fontSize: '11px',
+    color: '#4B5563',
+  },
+  modelCount: {
+    fontSize: '12px',
+    fontWeight: 600,
+    fontFamily: 'inherit',
+    color: '#A1A1AA',
+  },
+  progressContainer: {
+    height: '4px',
+    background: 'rgba(255,255,255,0.03)',
+    borderRadius: '2px',
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    borderRadius: '2px',
+  },
+  statusPanel: {
+    background: 'rgba(255,255,255,0.01)',
+    border: '1px solid rgba(255,255,255,0.04)',
+    borderRadius: '16px',
+    padding: '16px 24px',
+  },
+  statusIconRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '14px',
+  },
+  systemPulseCircle: {
+    width: '20px',
+    height: '20px',
+    position: 'relative',
+    display: 'grid',
+    placeItems: 'center',
+  },
+  pulseRing: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    borderRadius: '50%',
+    background: 'rgba(0, 212, 255, 0.25)',
+    animation: 'pulse 2s infinite ease-out',
+  },
+  pulseDot: {
+    width: '8px',
+    height: '8px',
+    borderRadius: '50%',
+    background: '#00D4FF',
+    boxShadow: '0 0 8px #00D4FF',
+    zIndex: 2,
+  },
+  statusTitle: {
+    fontSize: '13px',
+    fontWeight: 600,
+    color: '#fff',
+    marginBottom: '2px',
+  },
+  statusLatency: {
+    fontSize: '11px',
+    color: '#4B5563',
+  },
+};
