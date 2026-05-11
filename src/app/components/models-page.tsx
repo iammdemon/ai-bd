@@ -39,7 +39,7 @@ export function ModelsPage({ setPage, openModelPicker, openApiKeys }: ModelsPage
       {/* 1. LEFT NAVIGATION PANEL */}
       <aside style={styles.sidebar}>
         <div>
-          {/* Logo Heading (Matches Enterprise Workspace Theme) */}
+          {/* Logo Heading */}
           <div style={styles.logoRow}>
             <div style={styles.logoBadge}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5">
@@ -48,7 +48,7 @@ export function ModelsPage({ setPage, openModelPicker, openApiKeys }: ModelsPage
             </div>
             <div>
               <div style={styles.logoText}>OneAI Hub</div>
-              <div style={styles.logoSubtext}>ENTERPRISE WORKSPACE</div>
+              <div style={styles.logoSubtext}>Pro Plan</div>
             </div>
           </div>
 
@@ -68,7 +68,7 @@ export function ModelsPage({ setPage, openModelPicker, openApiKeys }: ModelsPage
             </button>
 
             <button 
-              onClick={() => setActiveTab('models')} 
+              onClick={() => {}} 
               style={{...styles.navItem, ...styles.navItemActive}}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -112,24 +112,26 @@ export function ModelsPage({ setPage, openModelPicker, openApiKeys }: ModelsPage
           </nav>
         </div>
 
-        {/* Dynamic Usage Metric card at sidebar bottom */}
-        <div style={styles.usageWrapper}>
-          <div style={styles.usagePanel}>
-            <div style={styles.usageHeader}>
-              <span style={styles.usageLabel}>USAGE (THIS MONTH)</span>
-              <span style={styles.usageBadge}>Normal</span>
-            </div>
-            <div style={styles.usageValue}>$1,240<span style={{ fontSize: '12px', opacity: 0.5 }}>.50</span></div>
-            <div style={styles.progressBarBg}>
-              <div style={{...styles.progressBarFill, width: '45%'}} />
-            </div>
-          </div>
+        {/* Sidebar Footer options */}
+        <div style={styles.sidebarFooter}>
+          <button onClick={() => alert('Support Portal (Simulated)')} style={styles.footerItem}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01" />
+            </svg>
+            <span>Help</span>
+          </button>
 
           <button onClick={handleSignOut} style={styles.footerItem}>
-            <div style={styles.avatarMini}>
-              {user?.displayName ? user.displayName[0].toUpperCase() : (user?.email ? user.email[0].toUpperCase() : 'A')}
-            </div>
-            <span style={styles.footerEmail}>{user?.email || 'admin@aetheric.ai'}</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+            </svg>
+            <span>Logout</span>
+          </button>
+
+          {/* New Chat pill button at bottom */}
+          <button onClick={() => setPage('playground')} style={styles.newChatBtn}>
+            <span>+ New Chat</span>
           </button>
         </div>
       </aside>
@@ -546,88 +548,39 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#fff',
     boxShadow: '0 0 12px -3px rgba(124, 58, 237, 0.15)',
   },
-  usageWrapper: {
+  sidebarFooter: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '14px',
+    gap: '6px',
     borderTop: '1px solid rgba(255,255,255,0.05)',
     paddingTop: '16px',
-  },
-  usagePanel: {
-    background: 'rgba(255,255,255,0.01)',
-    border: '1px solid rgba(255,255,255,0.04)',
-    borderRadius: '12px',
-    padding: '14px',
-  },
-  usageHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '8px',
-  },
-  usageLabel: {
-    fontSize: '9.5px',
-    fontWeight: 600,
-    color: '#4B5563',
-    letterSpacing: '0.6px',
-  },
-  usageBadge: {
-    fontSize: '9px',
-    fontWeight: 600,
-    color: '#00D4FF',
-    background: 'rgba(0, 212, 255, 0.08)',
-    padding: '2px 6px',
-    borderRadius: '5px',
-  },
-  usageValue: {
-    fontFamily: 'Space Grotesk, sans-serif',
-    fontSize: '20px',
-    fontWeight: 600,
-    color: '#fff',
-    marginBottom: '10px',
-  },
-  progressBarBg: {
-    height: '4px',
-    background: 'rgba(255,255,255,0.04)',
-    borderRadius: '2px',
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    background: 'linear-gradient(90deg, #7C3AED, #00D4FF)',
-    borderRadius: '2px',
   },
   footerItem: {
     display: 'flex',
     alignItems: 'center',
-    gap: '10px',
-    padding: '8px 4px',
+    gap: '12px',
+    padding: '10px 12px',
     background: 'transparent',
     border: 'none',
-    color: '#71717A',
-    fontSize: '12.5px',
+    color: '#4B5563',
+    fontSize: '13px',
+    fontWeight: 500,
     cursor: 'pointer',
     textAlign: 'left',
     width: '100%',
   },
-  avatarMini: {
-    width: '24px',
-    height: '24px',
-    borderRadius: '50%',
-    background: 'linear-gradient(135deg, #00D4FF, #7C3AED)',
-    display: 'grid',
-    placeItems: 'center',
-    fontWeight: 600,
-    fontSize: '11px',
+  newChatBtn: {
+    width: '100%',
+    background: 'linear-gradient(180deg, #8a4af0, #6d28d9)',
+    border: '1px solid rgba(255,255,255,0.12)',
+    borderRadius: '10px',
     color: '#fff',
-    border: '1px solid rgba(255,255,255,0.1)',
-  },
-  footerEmail: {
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-    fontWeight: 500,
-    flex: 1,
+    fontSize: '13px',
+    fontWeight: 600,
+    padding: '10px 0',
+    cursor: 'pointer',
+    marginTop: '10px',
+    boxShadow: '0 8px 24px -8px rgba(124,58,237,0.4)',
   },
   mainHub: {
     flex: 1,

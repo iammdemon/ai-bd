@@ -123,7 +123,7 @@ export function SettingsPage({ setPage, openApiKeys }: SettingsPageProps) {
             </button>
 
             <button 
-              onClick={() => setActiveTab('settings')} 
+              onClick={() => {}} 
               style={{...styles.navItem, ...styles.navItemActive}}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -135,29 +135,24 @@ export function SettingsPage({ setPage, openApiKeys }: SettingsPageProps) {
           </nav>
         </div>
 
-        {/* Footer & Chat Button Options */}
+        {/* Sidebar Footer options */}
         <div style={styles.sidebarFooter}>
           <button onClick={() => alert('Support Portal (Simulated)')} style={styles.footerItem}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" />
               <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01" />
             </svg>
-            <span>Support</span>
+            <span>Help</span>
           </button>
 
-          {/* Plan badge row */}
-          <button onClick={() => alert('Plan Details')} style={styles.footerPlanBadge}>
-            <div style={styles.avatarMini}>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9L12 2Z" />
-              </svg>
-            </div>
-            <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#fff', flex: 1, textAlign: 'left' }}>Pro Plan</span>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#71717A" strokeWidth="2.5">
-              <polyline points="9 18 15 12 9 6" />
+          <button onClick={handleSignOut} style={styles.footerItem}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
             </svg>
+            <span>Logout</span>
           </button>
 
+          {/* New Chat pill button at bottom */}
           <button onClick={() => setPage('playground')} style={styles.newChatBtn}>
             <span>+ New Chat</span>
           </button>

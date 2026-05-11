@@ -87,7 +87,7 @@ export function AnalyticsPage({ setPage }: AnalyticsPageProps) {
             </button>
 
             <button 
-              onClick={() => setActiveTab('analytics')} 
+              onClick={() => {}} 
               style={{...styles.navItem, ...styles.navItemActive}}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -109,25 +109,26 @@ export function AnalyticsPage({ setPage }: AnalyticsPageProps) {
           </nav>
         </div>
 
-        {/* New Chat & Footer item */}
+        {/* Sidebar Footer options */}
         <div style={styles.sidebarFooter}>
-          <button onClick={() => setPage('playground')} style={styles.newChatBtn}>
-            <span>+ New Chat</span>
-          </button>
-
           <button onClick={() => alert('Support Portal (Simulated)')} style={styles.footerItem}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" />
               <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01" />
             </svg>
-            <span>Support</span>
+            <span>Help</span>
           </button>
 
           <button onClick={handleSignOut} style={styles.footerItem}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
             </svg>
-            <span>Sign Out</span>
+            <span>Logout</span>
+          </button>
+
+          {/* New Chat pill button at bottom */}
+          <button onClick={() => setPage('playground')} style={styles.newChatBtn}>
+            <span>+ New Chat</span>
           </button>
         </div>
       </aside>
