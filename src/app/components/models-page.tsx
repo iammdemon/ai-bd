@@ -80,7 +80,7 @@ export function ModelsPage({ setPage, openModelPicker, openApiKeys }: ModelsPage
             </button>
 
             <button 
-              onClick={() => alert('Playground Mode (Simulated)')} 
+              onClick={() => setPage('playground')} 
               style={styles.navItem}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -90,13 +90,13 @@ export function ModelsPage({ setPage, openModelPicker, openApiKeys }: ModelsPage
             </button>
 
             <button 
-              onClick={() => openApiKeys()} 
+              onClick={() => setPage('analytics')} 
               style={styles.navItem}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3" />
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
               </svg>
-              <span>API Keys</span>
+              <span>Analytics</span>
             </button>
 
             <button 

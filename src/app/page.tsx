@@ -9,6 +9,7 @@ import { DashboardPage } from './components/dashboard';
 import { SettingsPage } from './components/settings';
 import { ModelsPage } from './components/models-page';
 import { PlaygroundPage } from './components/playground';
+import { AnalyticsPage } from './components/analytics';
 import { AuthPage } from './components/auth';
 import { ModelPickerModal, ApiKeysModal } from './components/modals';
 import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakToggle, TweakButton } from './components/tweaks-panel';
@@ -46,7 +47,7 @@ export default function App() {
 
   // Client-Side Route Guard for Protected Pages
   useEffect(() => {
-    if (!authLoading && !user && (page === 'dashboard' || page === 'settings' || page === 'models' || page === 'playground')) {
+    if (!authLoading && !user && (page === 'dashboard' || page === 'settings' || page === 'models' || page === 'playground' || page === 'analytics')) {
       setPage('login');
     }
   }, [user, authLoading, page]);
@@ -72,7 +73,7 @@ export default function App() {
 
   return (
     <>
-      {!isAuthPage && page !== 'dashboard' && page !== 'models' && page !== 'playground' && <TopNav page={page} setPage={setPage} />}
+      {!isAuthPage && page !== 'dashboard' && page !== 'models' && page !== 'playground' && page !== 'analytics' && <TopNav page={page} setPage={setPage} />}
 
       <main>
         {page === 'landing'    && <LandingPage setPage={setPage} />}
@@ -81,6 +82,7 @@ export default function App() {
         {page === 'dashboard'  && <DashboardPage setPage={setPage} currentModel={currentModel} setCurrentModel={setCurrentModel} openModelPicker={() => setPickerOpen(true)} openApiKeys={() => setKeysOpen(true)} />}
         {page === 'models'     && <ModelsPage setPage={setPage} openModelPicker={() => setPickerOpen(true)} openApiKeys={() => setKeysOpen(true)} />}
         {page === 'playground' && <PlaygroundPage setPage={setPage} />}
+        {page === 'analytics'  && <AnalyticsPage setPage={setPage} />}
         {page === 'settings'   && <SettingsPage setPage={setPage} openApiKeys={() => setKeysOpen(true)} />}
         {isAuthPage            && <AuthPage page={page} setPage={setPage} />}
       </main>
