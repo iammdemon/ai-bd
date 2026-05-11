@@ -8,6 +8,7 @@ import { PricingPage } from './components/pricing';
 import { DashboardPage } from './components/dashboard';
 import { SettingsPage } from './components/settings';
 import { ModelsPage } from './components/models-page';
+import { PlaygroundPage } from './components/playground';
 import { AuthPage } from './components/auth';
 import { ModelPickerModal, ApiKeysModal } from './components/modals';
 import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakToggle, TweakButton } from './components/tweaks-panel';
@@ -45,7 +46,7 @@ export default function App() {
 
   // Client-Side Route Guard for Protected Pages
   useEffect(() => {
-    if (!authLoading && !user && (page === 'dashboard' || page === 'settings' || page === 'models')) {
+    if (!authLoading && !user && (page === 'dashboard' || page === 'settings' || page === 'models' || page === 'playground')) {
       setPage('login');
     }
   }, [user, authLoading, page]);
@@ -71,7 +72,7 @@ export default function App() {
 
   return (
     <>
-      {!isAuthPage && page !== 'dashboard' && page !== 'models' && <TopNav page={page} setPage={setPage} />}
+      {!isAuthPage && page !== 'dashboard' && page !== 'models' && page !== 'playground' && <TopNav page={page} setPage={setPage} />}
 
       <main>
         {page === 'landing'    && <LandingPage setPage={setPage} />}
@@ -79,6 +80,7 @@ export default function App() {
         {page === 'pricing'    && <PricingPage setPage={setPage} />}
         {page === 'dashboard'  && <DashboardPage setPage={setPage} currentModel={currentModel} setCurrentModel={setCurrentModel} openModelPicker={() => setPickerOpen(true)} openApiKeys={() => setKeysOpen(true)} />}
         {page === 'models'     && <ModelsPage setPage={setPage} openModelPicker={() => setPickerOpen(true)} openApiKeys={() => setKeysOpen(true)} />}
+        {page === 'playground' && <PlaygroundPage setPage={setPage} />}
         {page === 'settings'   && <SettingsPage setPage={setPage} openApiKeys={() => setKeysOpen(true)} />}
         {isAuthPage            && <AuthPage page={page} setPage={setPage} />}
       </main>

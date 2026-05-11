@@ -70,16 +70,6 @@ export function DashboardPage({ setPage, openModelPicker, openApiKeys }: Dashboa
             </button>
 
             <button 
-              onClick={() => setActiveTab('workspaces')} 
-              style={{...styles.navItem, ...(activeTab === 'workspaces' ? styles.navItemActive : {})}}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-              </svg>
-              <span>Workspaces</span>
-            </button>
-
-            <button 
               onClick={() => setPage('models')} 
               style={{...styles.navItem, ...(activeTab === 'models' ? styles.navItemActive : {})}}
             >
@@ -92,24 +82,23 @@ export function DashboardPage({ setPage, openModelPicker, openApiKeys }: Dashboa
             </button>
 
             <button 
+              onClick={() => setPage('playground')} 
+              style={{...styles.navItem, ...(activeTab === 'playground' ? styles.navItemActive : {})}}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="5 3 19 12 5 21 5 3" />
+              </svg>
+              <span>Playground</span>
+            </button>
+
+            <button 
               onClick={() => openApiKeys()} 
               style={{...styles.navItem, ...(activeTab === 'api-keys' ? styles.navItemActive : {})}}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
+                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3" />
               </svg>
               <span>API Keys</span>
-            </button>
-
-            <button 
-              onClick={() => setPage('pricing')} 
-              style={{...styles.navItem, ...(activeTab === 'billing' ? styles.navItemActive : {})}}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-                <line x1="1" y1="10" x2="23" y2="10" />
-              </svg>
-              <span>Billing</span>
             </button>
 
             <button 
