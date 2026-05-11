@@ -65,6 +65,17 @@ export function AnalyticsPage({ setPage }: AnalyticsPageProps) {
             </button>
 
             <button 
+              onClick={() => setPage('history')} 
+              style={styles.navItem}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 8v4l3 3" />
+                <circle cx="12" cy="12" r="9" />
+              </svg>
+              <span>History</span>
+            </button>
+
+            <button 
               onClick={() => setPage('models')} 
               style={styles.navItem}
             >

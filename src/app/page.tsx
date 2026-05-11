@@ -10,6 +10,7 @@ import { SettingsPage } from './components/settings';
 import { ModelsPage } from './components/models-page';
 import { PlaygroundPage } from './components/playground';
 import { AnalyticsPage } from './components/analytics';
+import { HistoryPage } from './components/history';
 import { AuthPage } from './components/auth';
 import { ModelPickerModal, ApiKeysModal } from './components/modals';
 import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakToggle, TweakButton } from './components/tweaks-panel';
@@ -47,7 +48,7 @@ export default function App() {
 
   // Client-Side Route Guard for Protected Pages
   useEffect(() => {
-    if (!authLoading && !user && (page === 'dashboard' || page === 'settings' || page === 'models' || page === 'playground' || page === 'analytics')) {
+    if (!authLoading && !user && (page === 'dashboard' || page === 'settings' || page === 'models' || page === 'playground' || page === 'analytics' || page === 'history')) {
       setPage('login');
     }
   }, [user, authLoading, page]);
@@ -73,7 +74,7 @@ export default function App() {
 
   return (
     <>
-      {!isAuthPage && page !== 'dashboard' && page !== 'models' && page !== 'playground' && page !== 'analytics' && <TopNav page={page} setPage={setPage} />}
+      {!isAuthPage && page !== 'dashboard' && page !== 'models' && page !== 'playground' && page !== 'analytics' && page !== 'history' && <TopNav page={page} setPage={setPage} />}
 
       <main>
         {page === 'landing'    && <LandingPage setPage={setPage} />}
@@ -83,6 +84,7 @@ export default function App() {
         {page === 'models'     && <ModelsPage setPage={setPage} openModelPicker={() => setPickerOpen(true)} openApiKeys={() => setKeysOpen(true)} />}
         {page === 'playground' && <PlaygroundPage setPage={setPage} />}
         {page === 'analytics'  && <AnalyticsPage setPage={setPage} />}
+        {page === 'history'    && <HistoryPage setPage={setPage} />}
         {page === 'settings'   && <SettingsPage setPage={setPage} openApiKeys={() => setKeysOpen(true)} />}
         {isAuthPage            && <AuthPage page={page} setPage={setPage} />}
       </main>

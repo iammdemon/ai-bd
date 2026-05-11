@@ -13,12 +13,12 @@ interface DashboardPageProps {
   openApiKeys: () => void;
 }
 
-export function DashboardPage({ setPage }: DashboardPageProps) {
+export function DashboardPage({ setPage, openModelPicker, openApiKeys }: DashboardPageProps) {
   const [user, setUser] = useState<User | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [recentFilter, setRecentFilter] = useState<'today' | 'all'>('today');
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [chartRange, setChartRange] = useState<'7D' | '30D' | 'All'>('7D');
 
-  // Monitor auth status
+  // Monitor Auth State for display
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -67,6 +67,17 @@ export function DashboardPage({ setPage }: DashboardPageProps) {
                 <rect x="3" y="16" width="7" height="5" rx="1" />
               </svg>
               <span>Dashboard</span>
+            </button>
+
+            <button 
+              onClick={() => setPage('history')} 
+              style={styles.navItem}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 8v4l3 3" />
+                <circle cx="12" cy="12" r="9" />
+              </svg>
+              <span>History</span>
             </button>
 
             <button 
@@ -138,18 +149,15 @@ export function DashboardPage({ setPage }: DashboardPageProps) {
         </div>
       </aside>
 
-      {/* 2. MAIN HUB */}
+      {/* 2. MAIN HUB SPACE */}
       <main style={styles.mainHub}>
         
-        {/* Chat History Header */}
+        {/* Dynamic Navigation Header */}
         <header style={styles.header}>
-          <div>
-            <h2 style={styles.headerTitle}>Chat History</h2>
-            <p style={styles.headerSubtitle}>Review and resume your past aetheric interactions.</p>
-          </div>
-
+          <h2 style={styles.headerTitle}>Overview</h2>
+          
           <div style={styles.headerControls}>
-            {/* Search Input */}
+            {/* Search inputs */}
             <div style={styles.searchWrapper}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#71717A" strokeWidth="2.5">
                 <circle cx="11" cy="11" r="8" />
@@ -157,213 +165,465 @@ export function DashboardPage({ setPage }: DashboardPageProps) {
               </svg>
               <input 
                 type="text" 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search conversations..." 
+                placeholder="Search models, projects..." 
                 style={styles.searchInput}
               />
             </div>
 
-            {/* Filters Button */}
-            <button onClick={() => alert('Toggle Advanced Filters')} style={styles.filtersBtn}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 6 }}>
-                <line x1="4" y1="21" x2="4" y2="14" />
-                <line x1="4" y1="10" x2="4" y2="3" />
-                <line x1="12" y1="21" x2="12" y2="12" />
-                <line x1="12" y1="8" x2="12" y2="3" />
-                <line x1="20" y1="21" x2="20" y2="16" />
-                <line x1="20" y1="12" x2="20" y2="3" />
-                <line x1="1" y1="14" x2="7" y2="14" />
-                <line x1="9" y1="8" x2="15" y2="8" />
-                <line x1="17" y1="16" x2="23" y2="16" />
+            {/* Notification bell */}
+            <button style={styles.bellButton}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" />
               </svg>
-              <span>Filters</span>
+              <span style={styles.bellBadge} />
             </button>
+
+            {/* User profile avatar info */}
+            <div style={styles.avatar}>
+              {user?.displayName ? user.displayName[0].toUpperCase() : (user?.email ? user.email[0].toUpperCase() : 'U')}
+            </div>
           </div>
         </header>
 
-        {/* Scrollable Workspace panel */}
+        {/* Dashboard Rows scrolling viewport */}
         <div style={styles.scrollArea}>
           
-          {/* PINNED THREADS SECTION */}
-          <section style={styles.sectionBlock}>
-            <div style={styles.sectionHeader}>
-              <span style={{ marginRight: 8, color: '#F59E0B' }}>📌</span>
-              <h3 style={styles.sectionTitle}>Pinned Threads</h3>
+          {/* STATS METRIC ROW */}
+          <section style={styles.statsGrid}>
+            
+            {/* Total Tokens Used Card */}
+            <div style={styles.metricCard}>
+              <div style={styles.metricHeader}>
+                <div style={styles.metricIconBox}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                  </svg>
+                </div>
+                <span style={styles.metricPill}>+12.5%</span>
+              </div>
+              <div style={styles.metricValue}>12.4M</div>
+              <div style={styles.metricLabel}>Total Tokens Used</div>
             </div>
 
-            <div style={styles.pinnedGrid}>
-              
-              {/* Card 1 */}
-              <div style={styles.pinnedCard}>
-                <div style={styles.cardHeader}>
-                  <div style={styles.modelBadgeBlue}>
-                    <span style={styles.blueDot} />
-                    <span>GPT-4o</span>
-                  </div>
-                  <span style={styles.cardTime}>2 hrs ago</span>
-                  <div style={styles.pinIconBoxActive}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
-                    </svg>
-                  </div>
-                </div>
-
-                <h4 style={styles.cardTitle}>Quantum Computing Optimization Pipeline</h4>
-                <p style={styles.cardSnippet}>
-                  The proposed algorithm reduces decoherence by...
-                </p>
-
-                <div style={styles.cardFooter}>
-                  <span style={styles.cardMetric}>4,201 tkns</span>
-                  <span style={styles.cardMetric}>~$0.04</span>
-                  <button onClick={() => setPage('playground')} style={styles.resumeLink}>
-                    <span>Resume</span>
-                    <span style={{ marginLeft: 4 }}>→</span>
-                  </button>
+            {/* Active Sessions Card */}
+            <div style={styles.metricCard}>
+              <div style={styles.metricHeader}>
+                <div style={{...styles.metricIconBox, color: '#A78BFA'}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{animation: 'spin 10s linear infinite'}}>
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 6v6l4 2" />
+                  </svg>
                 </div>
               </div>
-
-              {/* Card 2 */}
-              <div style={styles.pinnedCard}>
-                <div style={styles.cardHeader}>
-                  <div style={styles.modelBadgePurple}>
-                    <span style={styles.purpleDot} />
-                    <span>Claude 3.5 Sonnet</span>
-                  </div>
-                  <span style={styles.cardTime}>Yesterday</span>
-                  <div style={styles.pinIconBoxActive}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
-                    </svg>
-                  </div>
-                </div>
-
-                <h4 style={styles.cardTitle}>Q3 Marketing Strategy Narrative</h4>
-                <p style={styles.cardSnippet}>
-                  To position the new platform effectively, we...
-                </p>
-
-                <div style={styles.cardFooter}>
-                  <span style={styles.cardMetric}>12,840 tkns</span>
-                  <span style={styles.cardMetric}>~$0.12</span>
-                  <button onClick={() => setPage('playground')} style={styles.resumeLink}>
-                    <span>Resume</span>
-                    <span style={{ marginLeft: 4 }}>→</span>
-                  </button>
-                </div>
-              </div>
-
+              <div style={styles.metricValue}>142</div>
+              <div style={styles.metricLabel}>Active Sessions</div>
             </div>
+
+            {/* API Health Card */}
+            <div style={styles.metricCard}>
+              <div style={styles.metricHeader}>
+                <div style={{...styles.metricIconBox, color: '#00D4FF'}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                  </svg>
+                </div>
+                <span style={{...styles.metricPill, background: 'rgba(0, 212, 255, 0.08)', color: '#7DD3FC'}}>Last 24h</span>
+              </div>
+              <div style={{...styles.metricValue, color: '#00D4FF'}}>99.9%</div>
+              <div style={styles.metricLabel}>API Health</div>
+            </div>
+
+            {/* Credit Balance Card */}
+            <div style={styles.metricCard}>
+              <div style={styles.metricHeader}>
+                <div style={{...styles.metricIconBox, color: '#F59E0B'}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="2" y="4" width="20" height="16" rx="2" />
+                    <line x1="12" y1="4" x2="12" y2="20" />
+                  </svg>
+                </div>
+                <button onClick={() => setPage('pricing')} style={styles.metricButton}>Top up</button>
+              </div>
+              <div style={styles.metricValue}>$4,250<span style={{ fontSize: '18px', opacity: 0.5 }}>.00</span></div>
+              <div style={styles.metricLabel}>Credit Balance</div>
+            </div>
+
           </section>
 
-          {/* RECENT ACTIVITY SECTION */}
-          <section style={styles.sectionBlock}>
-            <div style={styles.recentHeaderRow}>
-              <h3 style={styles.sectionTitle}>Recent Activity</h3>
-              <div style={styles.recentToggles}>
-                <span 
-                  onClick={() => setRecentFilter('today')} 
-                  style={{...styles.toggleLabel, ...(recentFilter === 'today' ? styles.toggleActive : {})}}
-                >
-                  Today
-                </span>
-                <span 
-                  onClick={() => setRecentFilter('all')} 
-                  style={{...styles.toggleLabel, ...(recentFilter === 'all' ? styles.toggleActive : {})}}
-                >
-                  Last 7 Days
-                </span>
-              </div>
-            </div>
-
-            {/* List group stream */}
-            <div style={styles.activityList}>
+          {/* TWO COLUMN GRID ROWS */}
+          <div style={styles.twoColRow}>
+            
+            {/* LEFT AREA: Workspaces + Usage Timeline */}
+            <div style={styles.leftColumn}>
               
-              {/* Item 1 */}
-              <div style={styles.activityRow}>
-                <div style={styles.iconBox}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#71717A" strokeWidth="2.5">
-                    <polyline points="16 18 22 12 16 6" />
-                    <polyline points="8 6 2 12 8 18" />
-                  </svg>
+              {/* Active Workspaces block */}
+              <div style={styles.panelSection}>
+                <div style={styles.sectionTitleRow}>
+                  <h3 style={styles.sectionTitle}>Active Workspaces</h3>
+                  <button onClick={() => setActiveTab('workspaces')} style={styles.viewAllBtn}>View All →</button>
                 </div>
-                <div style={styles.textBlock}>
-                  <h5 style={styles.rowTitle}>React Native Navigation Refactor</h5>
-                  <div style={styles.snippetContainer}>
-                    <span style={styles.modelTag}>GPT-4o</span>
-                    <p style={styles.rowSnippet}>
-                      I need help transitioning from React Navigation v5 to v6, specifically handling the neste...
-                    </p>
+
+                <div style={styles.workspaceGrid}>
+                  
+                  {/* Workspace 1 */}
+                  <div style={styles.workspaceCard}>
+                    <div style={styles.workspaceHeader}>
+                      <div style={styles.workspaceIconPurple}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                        </svg>
+                      </div>
+                      <div style={styles.workspaceTitleBlock}>
+                        <div style={styles.workspaceName}>Customer Support Bot</div>
+                        <div style={styles.statusBox}>
+                          <span style={styles.statusIndicatorGreen} />
+                          <span style={styles.statusTextGreen}>Running</span>
+                        </div>
+                      </div>
+                      <button style={styles.optionDot}>•••</button>
+                    </div>
+
+                    <div style={styles.tagsContainer}>
+                      <span style={styles.tag}>GPT-4 TURBO</span>
+                      <span style={styles.tag}>RETRIEVAL</span>
+                    </div>
+
+                    <div style={styles.workspaceFooter}>
+                      <span style={styles.footerStats}>Tokens Today: <strong style={{ color: '#fff' }}>457k</strong></span>
+                      <button style={styles.actionButton}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                          <polygon points="5 3 19 12 5 21 5 3" />
+                        </svg>
+                        <span>Resume</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <div style={styles.rowTimeCol}>10:42 AM</div>
-                <div style={styles.rowStatsCol}>
-                  <div style={styles.rowTokens}>854 tkns</div>
-                  <div style={styles.rowCost}>~$0.01</div>
+
+                  {/* Workspace 2 */}
+                  <div style={styles.workspaceCard}>
+                    <div style={styles.workspaceHeader}>
+                      <div style={styles.workspaceIconTeal}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <polyline points="14 2 14 8 20 8" />
+                          <line x1="16" y1="13" x2="8" y2="13" />
+                          <line x1="16" y1="17" x2="8" y2="17" />
+                          <polyline points="10 9 9 9 8 9" />
+                        </svg>
+                      </div>
+                      <div style={styles.workspaceTitleBlock}>
+                        <div style={styles.workspaceName}>Legal Doc Analysis</div>
+                        <div style={styles.statusBox}>
+                          <span style={styles.statusIndicatorOrange} />
+                          <span style={styles.statusTextOrange}>Paused</span>
+                        </div>
+                      </div>
+                      <button style={styles.optionDot}>•••</button>
+                    </div>
+
+                    <div style={styles.tagsContainer}>
+                      <span style={styles.tag}>CLAUDE 3.5</span>
+                      <span style={styles.tag}>VISION</span>
+                    </div>
+
+                    <div style={styles.workspaceFooter}>
+                      <span style={styles.footerStats}>Tokens Today: <strong style={{ color: '#fff' }}>12k</strong></span>
+                      <button style={styles.actionButton}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                          <polygon points="5 3 19 12 5 21 5 3" />
+                        </svg>
+                        <span>Resume</span>
+                      </button>
+                    </div>
+                  </div>
+
                 </div>
               </div>
 
-              {/* Item 2 */}
-              <div style={styles.activityRow}>
-                <div style={styles.iconBox}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#71717A" strokeWidth="2.5">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                  </svg>
-                </div>
-                <div style={styles.textBlock}>
-                  <h5 style={styles.rowTitle}>Drafting Investor Update Email</h5>
-                  <div style={styles.snippetContainer}>
-                    <span style={styles.modelTag}>Claude 3 Haiku</span>
-                    <p style={styles.rowSnippet}>
-                      Please review this draft for tone. It needs to sound optimistic but grounded regar...
-                    </p>
+              {/* Usage Over Time (Chart section) */}
+              <div style={styles.panelSection}>
+                <div style={styles.sectionTitleRow}>
+                  <h3 style={styles.sectionTitle}>Usage Over Time</h3>
+                  <div style={styles.tabButtons}>
+                    {(['7D', '30D', 'All'] as const).map(item => (
+                      <button 
+                        key={item} 
+                        onClick={() => setChartRange(item)} 
+                        style={{...styles.tabBtn, ...(chartRange === item ? styles.tabBtnActive : {})}}
+                      >
+                        {item}
+                      </button>
+                    ))}
                   </div>
                 </div>
-                <div style={styles.rowTimeCol}>Yesterday</div>
-                <div style={styles.rowStatsCol}>
-                  <div style={styles.rowTokens}>2,100 tkns</div>
-                  <div style={styles.rowCost}>~$0.00</div>
+
+                <div style={styles.chartWrapper}>
+                  {/* Premium Vector SVG Graphic for static wave rendering */}
+                  <svg width="100%" height="160" viewBox="0 0 600 160" preserveAspectRatio="none">
+                    <defs>
+                      <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#00D4FF" stopOpacity="0.25" />
+                        <stop offset="100%" stopColor="#7C3AED" stopOpacity="0.0" />
+                      </linearGradient>
+                      <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feDropShadow dx="0" dy="4" stdDeviation="6" floodColor="#00D4FF" floodOpacity="0.4" />
+                      </filter>
+                    </defs>
+
+                    {/* Faint Horizontal Helper Gridlines */}
+                    <line x1="0" y1="40" x2="600" y2="40" stroke="rgba(255,255,255,0.02)" strokeWidth="1" />
+                    <line x1="0" y1="80" x2="600" y2="80" stroke="rgba(255,255,255,0.02)" strokeWidth="1" />
+                    <line x1="0" y1="120" x2="600" y2="120" stroke="rgba(255,255,255,0.02)" strokeWidth="1" />
+
+                    {/* Gradient Area Fill Under Curve */}
+                    <path 
+                      d="M 0 135 C 50 115, 100 80, 150 95 C 200 110, 250 100, 300 85 C 350 70, 400 35, 450 65 C 500 95, 550 115, 600 50 L 600 160 L 0 160 Z" 
+                      fill="url(#chartGradient)" 
+                    />
+
+                    {/* Glowing Accent Main Path Line */}
+                    <path 
+                      d="M 0 135 C 50 115, 100 80, 150 95 C 200 110, 250 100, 300 85 C 350 70, 400 35, 450 65 C 500 95, 550 115, 600 50" 
+                      fill="none" 
+                      stroke="#00D4FF" 
+                      strokeWidth="3.5" 
+                      filter="url(#glow)" 
+                      strokeLinecap="round"
+                    />
+
+                    {/* Interactive nodes or highlight indicators */}
+                    <circle cx="450" cy="65" r="5" fill="#fff" stroke="#00D4FF" strokeWidth="2.5" />
+                    <circle cx="300" cy="85" r="3.5" fill="#00D4FF" />
+                  </svg>
+
+                  {/* Horizontal Axis labels */}
+                  <div style={styles.chartXLabels}>
+                    <span>Mon</span>
+                    <span>Tue</span>
+                    <span>Wed</span>
+                    <span>Thu</span>
+                    <span>Fri</span>
+                    <span>Sat</span>
+                    <span>Sun</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Item 3 */}
-              <div style={styles.activityRow}>
-                <div style={styles.iconBox}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#71717A" strokeWidth="2.5">
-                    <line x1="18" y1="20" x2="18" y2="10" />
-                    <line x1="12" y1="20" x2="12" y2="4" />
-                    <line x1="6" y1="20" x2="6" y2="14" />
-                  </svg>
+              {/* Recent Activity Table */}
+              <div style={styles.panelSection}>
+                <div style={styles.sectionTitleRow}>
+                  <h3 style={styles.sectionTitle}>Recent Activity</h3>
+                  <button onClick={() => alert('Filter Active Activity')} style={styles.filterBtn}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                    </svg>
+                    <span>Filter</span>
+                  </button>
                 </div>
-                <div style={styles.textBlock}>
-                  <h5 style={styles.rowTitle}>SQL Query Optimization for User Logs</h5>
-                  <div style={styles.snippetContainer}>
-                    <span style={styles.modelTag}>GPT-4o</span>
-                    <p style={styles.rowSnippet}>
-                      This query is taking 5 seconds to run on a table with 10M rows. How can we optimize ...
-                    </p>
-                  </div>
-                </div>
-                <div style={styles.rowTimeCol}>Oct 24</div>
-                <div style={styles.rowStatsCol}>
-                  <div style={styles.rowTokens}>5,320 tkns</div>
-                  <div style={styles.rowCost}>~$0.05</div>
+
+                <div style={styles.tableWrapper}>
+                  <table style={styles.table}>
+                    <thead>
+                      <tr>
+                        <th style={styles.th}>MODEL</th>
+                        <th style={styles.th}>WORKSPACE</th>
+                        <th style={styles.th}>TIMESTAMP</th>
+                        <th style={styles.th}>TOKENS</th>
+                        <th style={styles.th}>COST</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr style={styles.tr}>
+                        <td style={styles.td}>
+                          <div style={styles.modelDotCol}>
+                            <span style={{...styles.dotIndicator, background: '#A78BFA'}} />
+                            <strong style={{ color: '#fff' }}>GPT-4 Turbo</strong>
+                          </div>
+                        </td>
+                        <td style={styles.td}>Customer Support Bot</td>
+                        <td style={styles.td}>10:42:05 AM</td>
+                        <td style={styles.td}>1,248</td>
+                        <td style={{...styles.td, color: '#34D399', fontWeight: 600}}>$0.012</td>
+                      </tr>
+
+                      <tr style={styles.tr}>
+                        <td style={styles.td}>
+                          <div style={styles.modelDotCol}>
+                            <span style={{...styles.dotIndicator, background: '#00D4FF'}} />
+                            <strong style={{ color: '#fff' }}>Claude 3.5 Sonnet</strong>
+                          </div>
+                        </td>
+                        <td style={styles.td}>Legal Doc Analysis</td>
+                        <td style={styles.td}>10:38:12 AM</td>
+                        <td style={styles.td}>8,458</td>
+                        <td style={{...styles.td, color: '#34D399', fontWeight: 600}}>$0.025</td>
+                      </tr>
+
+                      <tr style={styles.tr}>
+                        <td style={styles.td}>
+                          <div style={styles.modelDotCol}>
+                            <span style={{...styles.dotIndicator, background: '#A78BFA'}} />
+                            <strong style={{ color: '#fff' }}>GPT-4 Turbo</strong>
+                          </div>
+                        </td>
+                        <td style={styles.td}>Internal KB Search</td>
+                        <td style={styles.td}>10:15:00 AM</td>
+                        <td style={styles.td}>420</td>
+                        <td style={{...styles.td, color: '#34D399', fontWeight: 600}}>$0.004</td>
+                      </tr>
+
+                      <tr style={styles.tr}>
+                        <td style={styles.td}>
+                          <div style={styles.modelDotCol}>
+                            <span style={{...styles.dotIndicator, background: '#F59E0B'}} />
+                            <strong style={{ color: '#fff' }}>DALL-E 3</strong>
+                          </div>
+                        </td>
+                        <td style={styles.td}>Marketing Asset Gen</td>
+                        <td style={styles.td}>09:55:22 AM</td>
+                        <td style={styles.td}>1 img</td>
+                        <td style={{...styles.td, color: '#34D399', fontWeight: 600}}>$0.040</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
             </div>
-          </section>
+
+            {/* RIGHT COLUMN: Quick Actions, Top Models, Status Indicator */}
+            <div style={styles.rightColumn}>
+              
+              {/* Quick Actions Panel */}
+              <div style={styles.sidebarPanel}>
+                <h4 style={styles.panelTitle}>Quick Actions</h4>
+                
+                <div style={styles.actionStack}>
+                  
+                  {/* Action 1 */}
+                  <button onClick={() => openApiKeys()} style={styles.actionRow}>
+                    <div style={styles.actionLabelCol}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#71717A" strokeWidth="2">
+                        <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3" />
+                      </svg>
+                      <span>New API Key</span>
+                    </div>
+                    <div style={styles.actionButtonBox}>+</div>
+                  </button>
+
+                  {/* Action 2 */}
+                  <button onClick={() => setPage('pricing')} style={styles.actionRow}>
+                    <div style={styles.actionLabelCol}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#71717A" strokeWidth="2">
+                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                        <line x1="1" y1="10" x2="23" y2="10" />
+                      </svg>
+                      <span>Buy Credits</span>
+                    </div>
+                    <div style={styles.actionButtonBox}>→</div>
+                  </button>
+
+                  {/* Action 3 */}
+                  <button onClick={() => alert('Invite Team Members flow (Simulated)')} style={styles.actionRowDashed}>
+                    <div style={styles.actionLabelCol}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#71717A" strokeWidth="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                      </svg>
+                      <span style={{ color: '#71717A' }}>Invite Team</span>
+                    </div>
+                  </button>
+
+                </div>
+              </div>
+
+              {/* Top Models Stack */}
+              <div style={styles.sidebarPanel}>
+                <h4 style={styles.panelTitle}>Top Models</h4>
+                
+                <div style={styles.modelsStack}>
+                  
+                  {/* Model row 1 */}
+                  <div style={styles.modelUsageRow}>
+                    <div style={styles.modelRowHeader}>
+                      <div style={styles.modelBadgeAndLabel}>
+                        <div style={styles.modelSymbolPurple}>G4</div>
+                        <div>
+                          <div style={styles.modelTextLabel}>GPT-4 Turbo</div>
+                          <div style={styles.modelUsageSubtitle}>64% of usage</div>
+                        </div>
+                      </div>
+                      <span style={styles.modelCount}>7.8M</span>
+                    </div>
+                    <div style={styles.progressContainer}>
+                      <div style={{...styles.progressBar, width: '64%', background: '#7C3AED'}} />
+                    </div>
+                  </div>
+
+                  {/* Model row 2 */}
+                  <div style={styles.modelUsageRow}>
+                    <div style={styles.modelRowHeader}>
+                      <div style={styles.modelBadgeAndLabel}>
+                        <div style={styles.modelSymbolTeal}>C3</div>
+                        <div>
+                          <div style={styles.modelTextLabel}>Claude 3.5</div>
+                          <div style={styles.modelUsageSubtitle}>28% of usage</div>
+                        </div>
+                      </div>
+                      <span style={styles.modelCount}>3.4M</span>
+                    </div>
+                    <div style={styles.progressContainer}>
+                      <div style={{...styles.progressBar, width: '28%', background: '#00D4FF'}} />
+                    </div>
+                  </div>
+
+                  {/* Model row 3 */}
+                  <div style={styles.modelUsageRow}>
+                    <div style={styles.modelRowHeader}>
+                      <div style={styles.modelBadgeAndLabel}>
+                        <div style={styles.modelSymbolGray}>L3</div>
+                        <div>
+                          <div style={styles.modelTextLabel}>Llama 3 70B</div>
+                          <div style={styles.modelUsageSubtitle}>8% of usage</div>
+                        </div>
+                      </div>
+                      <span style={styles.modelCount}>1.2M</span>
+                    </div>
+                    <div style={styles.progressContainer}>
+                      <div style={{...styles.progressBar, width: '8%', background: '#4B5563'}} />
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* System Connection Status Box */}
+              <div style={styles.statusPanel}>
+                <div style={styles.statusIconRow}>
+                  <div style={styles.systemPulseCircle}>
+                    <span style={styles.pulseRing} />
+                    <span style={styles.pulseDot} />
+                  </div>
+                  <div>
+                    <div style={styles.statusTitle}>All Systems Nominal</div>
+                    <div style={styles.statusLatency}>Latency: 42ms (us-east-1)</div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
 
         </div>
       </main>
-
     </div>
   );
 }
 
-// Complete CSS-in-JS style mappings reflecting the design mockup pixel-perfectly
+// Inline styles for pixel-perfect match of OneAI Hub high-fidelity layout
 const styles: Record<string, React.CSSProperties> = {
   dashboardContainer: {
     display: 'flex',
@@ -460,19 +720,7 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     textAlign: 'left',
     width: '100%',
-  },
-  newChatBtn: {
-    width: '100%',
-    background: 'linear-gradient(180deg, #8a4af0, #6d28d9)',
-    border: '1px solid rgba(255,255,255,0.12)',
-    borderRadius: '10px',
-    color: '#fff',
-    fontSize: '13px',
-    fontWeight: 600,
-    padding: '10px 0',
-    cursor: 'pointer',
-    marginTop: '10px',
-    boxShadow: '0 8px 24px -8px rgba(124,58,237,0.4)',
+    transition: 'color .15s ease',
   },
   mainHub: {
     flex: 1,
@@ -482,7 +730,7 @@ const styles: Record<string, React.CSSProperties> = {
     overflow: 'hidden',
   },
   header: {
-    height: '76px',
+    height: '68px',
     borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
     display: 'flex',
     alignItems: 'center',
@@ -496,26 +744,21 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '20px',
     fontWeight: 600,
     color: '#fff',
-    marginBottom: '3px',
-  },
-  headerSubtitle: {
-    fontSize: '12.5px',
-    color: '#71717A',
   },
   headerControls: {
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
+    gap: '16px',
   },
   searchWrapper: {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
-    padding: '8px 12px',
+    padding: '7px 12px',
     borderRadius: '10px',
     background: 'rgba(255,255,255,0.02)',
     border: '1px solid rgba(255,255,255,0.05)',
-    width: '260px',
+    width: '220px',
   },
   searchInput: {
     background: 'transparent',
@@ -526,17 +769,35 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '12.5px',
     flex: 1,
   },
-  filtersBtn: {
-    background: 'rgba(255, 255, 255, 0.02)',
-    border: '1px solid rgba(255, 255, 255, 0.05)',
-    borderRadius: '10px',
-    color: '#fff',
-    padding: '8px 14px',
-    fontSize: '12.5px',
-    fontWeight: 600,
+  bellButton: {
+    background: 'transparent',
+    border: 'none',
+    color: '#71717A',
     cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
+    position: 'relative',
+    display: 'grid',
+    placeItems: 'center',
+    padding: '6px',
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: '4px',
+    right: '4px',
+    width: '6px',
+    height: '6px',
+    borderRadius: '50%',
+    background: '#EF4444',
+  },
+  avatar: {
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    background: 'linear-gradient(135deg, #7C3AED, #00D4FF)',
+    display: 'grid',
+    placeItems: 'center',
+    fontWeight: 600,
+    fontSize: '13px',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
   },
   scrollArea: {
     flex: 1,
@@ -544,233 +805,494 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '24px 28px 48px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '32px',
+    gap: '24px',
   },
-  sectionBlock: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px',
-  },
-  sectionHeader: {
-    display: 'flex',
-    alignItems: 'center',
-  },
-  sectionTitle: {
-    fontFamily: 'Space Grotesk, sans-serif',
-    fontSize: '15.5px',
-    fontWeight: 600,
-    color: '#fff',
-    margin: 0,
-  },
-  pinnedGrid: {
+  statsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
+    gridTemplateColumns: 'repeat(4, 1fr)',
     gap: '16px',
   },
-  pinnedCard: {
+  metricCard: {
     background: 'rgba(255, 255, 255, 0.01)',
     border: '1px solid rgba(255, 255, 255, 0.05)',
     borderRadius: '14px',
     padding: '18px 20px',
     display: 'flex',
     flexDirection: 'column',
-    position: 'relative',
+    justifyContent: 'space-between',
   },
-  cardHeader: {
+  metricHeader: {
     display: 'flex',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: '10px',
-    marginBottom: '14px',
-    position: 'relative',
-    width: '100%',
+    marginBottom: '12px',
   },
-  modelBadgeBlue: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
+  metricIconBox: {
+    width: '30px',
+    height: '30px',
+    borderRadius: '8px',
+    background: 'rgba(255,255,255,0.03)',
+    border: '1px solid rgba(255,255,255,0.05)',
+    color: '#A78BFA',
+    display: 'grid',
+    placeItems: 'center',
+  },
+  metricPill: {
     fontSize: '11px',
     fontWeight: 600,
-    color: '#60A5FA',
-    background: 'rgba(96, 165, 251, 0.08)',
-    border: '1px solid rgba(96, 165, 251, 0.15)',
-    padding: '2px 8px',
-    borderRadius: '999px',
+    background: 'rgba(52, 211, 153, 0.08)',
+    color: '#34D399',
+    padding: '3px 8px',
+    borderRadius: '6px',
   },
-  blueDot: {
-    width: '5px',
-    height: '5px',
-    borderRadius: '50%',
-    background: '#3B82F6',
-  },
-  modelBadgePurple: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    fontSize: '11px',
+  metricValue: {
+    fontFamily: 'Space Grotesk, sans-serif',
+    fontSize: '26px',
     fontWeight: 600,
-    color: '#C4B5FD',
-    background: 'rgba(196, 181, 253, 0.08)',
-    border: '1px solid rgba(196, 181, 253, 0.15)',
-    padding: '2px 8px',
-    borderRadius: '999px',
+    marginBottom: '4px',
+    color: '#fff',
   },
-  purpleDot: {
-    width: '5px',
-    height: '5px',
-    borderRadius: '50%',
-    background: '#8B5CF6',
-  },
-  cardTime: {
-    fontSize: '11.5px',
-    color: '#4B5563',
+  metricLabel: {
+    fontSize: '12.5px',
+    color: '#71717A',
     fontWeight: 500,
   },
-  pinIconBoxActive: {
-    position: 'absolute',
-    right: 0,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    color: '#9CA3AF',
+  metricButton: {
+    background: 'rgba(245, 158, 11, 0.08)',
+    border: '1px solid rgba(245, 158, 11, 0.2)',
+    borderRadius: '6px',
+    color: '#F59E0B',
+    fontSize: '11px',
+    fontWeight: 600,
+    padding: '3px 8px',
     cursor: 'pointer',
   },
-  cardTitle: {
+  twoColRow: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 340px',
+    gap: '24px',
+  },
+  leftColumn: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '24px',
+  },
+  rightColumn: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '24px',
+  },
+  panelSection: {
+    background: 'rgba(255,255,255,0.01)',
+    border: '1px solid rgba(255,255,255,0.04)',
+    borderRadius: '16px',
+    padding: '20px 24px',
+  },
+  sectionTitleRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '20px',
+  },
+  sectionTitle: {
     fontFamily: 'Space Grotesk, sans-serif',
-    fontSize: '15px',
+    fontSize: '16px',
     fontWeight: 600,
     color: '#fff',
-    margin: '0 0 8px 0',
-    lineHeight: '1.4',
   },
-  cardSnippet: {
-    fontSize: '13px',
+  viewAllBtn: {
+    background: 'transparent',
+    border: 'none',
     color: '#71717A',
-    margin: '0 0 20px 0',
-    lineHeight: '1.5',
+    fontSize: '12.5px',
+    cursor: 'pointer',
+    fontWeight: 500,
   },
-  cardFooter: {
+  workspaceGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '16px',
+  },
+  workspaceCard: {
+    background: 'rgba(255,255,255,0.01)',
+    border: '1px solid rgba(255,255,255,0.05)',
+    borderRadius: '14px',
+    padding: '16px',
+  },
+  workspaceHeader: {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
-    marginTop: 'auto',
-    borderTop: '1px solid rgba(255,255,255,0.03)',
-    paddingTop: '12px',
+    position: 'relative',
   },
-  cardMetric: {
-    fontSize: '11.5px',
-    color: '#4B5563',
-    fontWeight: 500,
-  },
-  resumeLink: {
-    marginLeft: 'auto',
-    background: 'transparent',
-    border: 'none',
-    color: '#fff',
-    fontSize: '12.5px',
-    fontWeight: 600,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-  },
-  recentHeaderRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-    borderBottom: '1px solid rgba(255,255,255,0.03)',
-    paddingBottom: '12px',
-    marginBottom: '8px',
-  },
-  recentToggles: {
-    display: 'flex',
-    gap: '16px',
-  },
-  toggleLabel: {
-    fontSize: '12.5px',
-    color: '#4B5563',
-    fontWeight: 500,
-    cursor: 'pointer',
-  },
-  toggleActive: {
-    color: '#fff',
-    fontWeight: 600,
-  },
-  activityList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-  },
-  activityRow: {
-    background: 'rgba(255, 255, 255, 0.01)',
-    border: '1px solid rgba(255, 255, 255, 0.03)',
-    borderRadius: '12px',
-    padding: '16px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px',
-  },
-  iconBox: {
-    width: '36px',
-    height: '36px',
-    borderRadius: '8px',
-    background: 'rgba(255,255,255,0.02)',
-    border: '1px solid rgba(255,255,255,0.04)',
+  workspaceIconPurple: {
+    width: '32px',
+    height: '32px',
+    borderRadius: '9px',
+    background: 'rgba(124, 58, 237, 0.08)',
+    border: '1px solid rgba(124, 58, 237, 0.2)',
+    color: '#A78BFA',
     display: 'grid',
     placeItems: 'center',
-    flexShrink: 0,
   },
-  textBlock: {
+  workspaceIconTeal: {
+    width: '32px',
+    height: '32px',
+    borderRadius: '9px',
+    background: 'rgba(0, 212, 255, 0.08)',
+    border: '1px solid rgba(0, 212, 255, 0.2)',
+    color: '#00D4FF',
+    display: 'grid',
+    placeItems: 'center',
+  },
+  workspaceTitleBlock: {
     flex: 1,
-    minWidth: 0,
   },
-  rowTitle: {
+  workspaceName: {
     fontSize: '13.5px',
     fontWeight: 600,
     color: '#fff',
-    margin: '0 0 4px 0',
+    marginBottom: '2px',
   },
-  snippetContainer: {
+  statusBox: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '5px',
+  },
+  statusIndicatorGreen: {
+    width: '6px',
+    height: '6px',
+    borderRadius: '50%',
+    background: '#34D399',
+    boxShadow: '0 0 6px #34D399',
+  },
+  statusTextGreen: {
+    fontSize: '11px',
+    color: '#34D399',
+    fontWeight: 500,
+  },
+  statusIndicatorOrange: {
+    width: '6px',
+    height: '6px',
+    borderRadius: '50%',
+    background: '#F59E0B',
+    boxShadow: '0 0 6px #F59E0B',
+  },
+  statusTextOrange: {
+    fontSize: '11px',
+    color: '#F59E0B',
+    fontWeight: 500,
+  },
+  optionDot: {
+    background: 'transparent',
+    border: 'none',
+    color: '#4B5563',
+    cursor: 'pointer',
+    fontSize: '12px',
+  },
+  tagsContainer: {
+    display: 'flex',
+    gap: '6px',
+    marginTop: '16px',
+    marginBottom: '16px',
+  },
+  tag: {
+    fontSize: '9.5px',
+    fontWeight: 600,
+    letterSpacing: '0.5px',
+    background: 'rgba(255,255,255,0.03)',
+    border: '1px solid rgba(255,255,255,0.05)',
+    color: '#71717A',
+    padding: '2px 6px',
+    borderRadius: '5px',
+  },
+  workspaceFooter: {
+    borderTop: '1px solid rgba(255,255,255,0.03)',
+    paddingTop: '12px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  footerStats: {
+    fontSize: '11.5px',
+    color: '#71717A',
+  },
+  actionButton: {
+    background: 'rgba(255, 255, 255, 0.02)',
+    border: '1px solid rgba(255, 255, 255, 0.05)',
+    borderRadius: '7px',
+    padding: '5px 10px',
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: '11.5px',
+    fontWeight: 500,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  tabButtons: {
+    display: 'inline-flex',
+    padding: '3px',
+    background: 'rgba(255,255,255,0.02)',
+    border: '1px solid rgba(255,255,255,0.04)',
+    borderRadius: '8px',
+  },
+  tabBtn: {
+    background: 'transparent',
+    border: 'none',
+    color: '#71717A',
+    fontSize: '11.5px',
+    fontWeight: 500,
+    padding: '4px 10px',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    transition: 'background .1s ease, color .1s ease',
+  },
+  tabBtnActive: {
+    background: 'rgba(255,255,255,0.05)',
+    color: '#fff',
+  },
+  chartWrapper: {
+    marginTop: '8px',
+  },
+  chartXLabels: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    padding: '12px 6px 0',
+    fontSize: '11.5px',
+    color: '#4B5563',
+    fontFamily: 'inherit',
+  },
+  filterBtn: {
+    background: 'transparent',
+    border: 'none',
+    color: '#71717A',
+    fontSize: '12.5px',
+    fontWeight: 500,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  tableWrapper: {
+    overflowX: 'auto',
+  },
+  table: {
+    width: '100%',
+    borderCollapse: 'collapse',
+    textAlign: 'left',
+  },
+  th: {
+    fontSize: '10.5px',
+    color: '#4B5563',
+    fontWeight: 600,
+    letterSpacing: '0.5px',
+    paddingBottom: '12px',
+    borderBottom: '1px solid rgba(255,255,255,0.03)',
+  },
+  tr: {
+    borderBottom: '1px solid rgba(255,255,255,0.02)',
+    transition: 'background .15s ease',
+  },
+  td: {
+    padding: '12px 0',
+    fontSize: '12.5px',
+    color: '#71717A',
+  },
+  modelDotCol: {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
   },
-  modelTag: {
-    fontSize: '10px',
+  dotIndicator: {
+    width: '6px',
+    height: '6px',
+    borderRadius: '50%',
+  },
+  sidebarPanel: {
+    background: 'rgba(255,255,255,0.01)',
+    border: '1px solid rgba(255,255,255,0.04)',
+    borderRadius: '16px',
+    padding: '20px 24px',
+  },
+  panelTitle: {
+    fontFamily: 'Space Grotesk, sans-serif',
+    fontSize: '14.5px',
     fontWeight: 600,
-    color: '#4B5563',
-    background: 'rgba(255,255,255,0.02)',
-    border: '1px solid rgba(255,255,255,0.05)',
-    padding: '2px 6px',
-    borderRadius: '4px',
-    flexShrink: 0,
+    color: '#fff',
+    marginBottom: '16px',
   },
-  rowSnippet: {
-    fontSize: '12.5px',
-    color: '#71717A',
-    margin: 0,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  rowTimeCol: {
-    fontSize: '11.5px',
-    color: '#4B5563',
-    fontWeight: 500,
-    flexShrink: 0,
-  },
-  rowStatsCol: {
+  actionStack: {
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'flex-end',
-    width: '80px',
-    flexShrink: 0,
+    gap: '10px',
   },
-  rowTokens: {
-    fontSize: '12px',
-    color: '#71717A',
+  actionRow: {
+    width: '100%',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    background: 'rgba(255,255,255,0.01)',
+    border: '1px solid rgba(255,255,255,0.04)',
+    borderRadius: '10px',
+    padding: '12px 14px',
+    cursor: 'pointer',
+    transition: 'border-color .1s ease, background .1s ease',
+  },
+  actionRowDashed: {
+    width: '100%',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    background: 'transparent',
+    border: '1px dashed rgba(255,255,255,0.08)',
+    borderRadius: '10px',
+    padding: '12px 14px',
+    cursor: 'pointer',
+    transition: 'border-color .1s ease',
+  },
+  actionLabelCol: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    color: '#fff',
+    fontSize: '13px',
     fontWeight: 500,
   },
-  rowCost: {
+  actionButtonBox: {
+    width: '20px',
+    height: '20px',
+    borderRadius: '5px',
+    background: 'rgba(255,255,255,0.03)',
+    border: '1px solid rgba(255,255,255,0.05)',
+    color: '#71717A',
+    fontSize: '12px',
+    display: 'grid',
+    placeItems: 'center',
+  },
+  modelsStack: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '18px',
+  },
+  modelUsageRow: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  modelRowHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modelBadgeAndLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  modelSymbolPurple: {
+    width: '26px',
+    height: '26px',
+    borderRadius: '6px',
+    background: 'rgba(124, 58, 237, 0.1)',
+    border: '1px solid rgba(124, 58, 237, 0.25)',
+    color: '#C4B5FD',
+    fontSize: '10px',
+    fontWeight: 700,
+    display: 'grid',
+    placeItems: 'center',
+  },
+  modelSymbolTeal: {
+    width: '26px',
+    height: '26px',
+    borderRadius: '6px',
+    background: 'rgba(0, 212, 255, 0.1)',
+    border: '1px solid rgba(0, 212, 255, 0.25)',
+    color: '#00D4FF',
+    fontSize: '10px',
+    fontWeight: 700,
+    display: 'grid',
+    placeItems: 'center',
+  },
+  modelSymbolGray: {
+    width: '26px',
+    height: '26px',
+    borderRadius: '6px',
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    color: '#A1A1AA',
+    fontSize: '10px',
+    fontWeight: 700,
+    display: 'grid',
+    placeItems: 'center',
+  },
+  modelTextLabel: {
+    fontSize: '13px',
+    fontWeight: 600,
+    color: '#fff',
+  },
+  modelUsageSubtitle: {
     fontSize: '11px',
     color: '#4B5563',
-    marginTop: '2px',
+  },
+  modelCount: {
+    fontSize: '12px',
+    fontWeight: 600,
+    fontFamily: 'inherit',
+    color: '#A1A1AA',
+  },
+  progressContainer: {
+    height: '4px',
+    background: 'rgba(255,255,255,0.03)',
+    borderRadius: '2px',
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    borderRadius: '2px',
+  },
+  statusPanel: {
+    background: 'rgba(255,255,255,0.01)',
+    border: '1px solid rgba(255,255,255,0.04)',
+    borderRadius: '16px',
+    padding: '16px 24px',
+  },
+  statusIconRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '14px',
+  },
+  systemPulseCircle: {
+    width: '20px',
+    height: '20px',
+    position: 'relative',
+    display: 'grid',
+    placeItems: 'center',
+  },
+  pulseRing: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    borderRadius: '50%',
+    background: 'rgba(0, 212, 255, 0.25)',
+    animation: 'pulse 2s infinite ease-out',
+  },
+  pulseDot: {
+    width: '8px',
+    height: '8px',
+    borderRadius: '50%',
+    background: '#00D4FF',
+    boxShadow: '0 0 8px #00D4FF',
+    zIndex: 2,
+  },
+  statusTitle: {
+    fontSize: '13px',
+    fontWeight: 600,
+    color: '#fff',
+    marginBottom: '2px',
+  },
+  statusLatency: {
+    fontSize: '11px',
+    color: '#4B5563',
   },
 };
